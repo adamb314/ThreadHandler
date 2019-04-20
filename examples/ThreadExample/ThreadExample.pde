@@ -13,7 +13,7 @@ SET_THREAD_HANDLER_TICK(0);
 //for adding support for new boards that this library does not support yet.
 //Currently the library supports SAMD21 and all version supported by the
 //TimerOne library. To see how to do this lock in the "platformSpecificClasses.h".
-THREAD_HANDLER_WITH_EXECUTION_ORDER_OPTIMIZED(InterruptTimer::getInstance());
+THREAD_HANDLER(InterruptTimer::getInstance());
 
 //This is the first thread class with its run function
 //configured to run every 20s with an offset of 0s and priority 1.
