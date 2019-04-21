@@ -38,9 +38,9 @@ ___
 | #|
 ```
 where
-LP = main loop function (priority -128)
-T1 = Thread1 (priority 1)
-T3 = Thread3 (priority 2)
+* LP = main loop function (priority -128)
+* T1 = Thread1 (priority 1)
+* T3 = Thread3 (priority 2)
 
 Scheduling rules
 ----------------
