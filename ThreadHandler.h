@@ -20,6 +20,10 @@ public:
     virtual ~Thread();
 
     virtual void run() = 0;
+
+private:
+    Thread(const Thread&) = delete;
+    Thread& operator=(const Thread&) = delete;
 };
 
 class ThreadInterruptBlocker
@@ -65,6 +69,10 @@ public:
     protected:
         void interruptRun();
     };
+
+private:
+    ThreadHandler(const ThreadHandler&) = delete;
+    ThreadHandler& operator=(const ThreadHandler&) = delete;
 
 protected:
     ThreadHandler();
