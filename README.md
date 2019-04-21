@@ -8,6 +8,51 @@ Download this repository as a .ZIP file and use
 library TimerOne. It can be installed from "Manage Libraries..." by searching
 for TimerOne.
 
+Execution demonstration examle
+------------------------------
+
+This library comes with an example which can be found under "Examples/ThreadHandler/ExecutionDemo" in the Arduino IDE. In this example three threads are created and the serial printout show how the execution of the different threads is split up by the library.
+
+Example output:
+```
+___
+|LP|
+| #|
+     ___
+     |T1|
+     | #|
+     | #|
+          ___
+          |T3|
+          | #|
+           ^^
+     | #|
+      ^^
+| #|
+| #|
+| #|
+ ^^
+___
+|LP|
+| #|
+| #|
+```
+where
+LP = main loop function (priority -128)
+T1 = Thread1 (priority 1)
+T3 = Thread3 (priority 2)
+
+Scheduling rules
+----------------
+
+The scheduling scheme of the ThreadHandler library is as follows:
+1. Highest priority first.
+2. If the priority is the same then the thread with the earliest dedline is executed first.
+3. If two threads have the same dedline then the first created thread will execute first.
+4. A thread can only be intrrupted by threads with higher priority.
+5. Once a thread is executing it will block execution for all threads with lower priority untill the run function returns.
+6. The loop function has priority -128 compared to ThreadHandler threads.
+
 How to use
 ----------
 
@@ -66,18 +111,7 @@ And dissabled by calling:
 ThreadHandler::getInstance()->enableThreadExecution(false);
 ```
 
-See the "ThreadExample" example for how to use this library.
-
-Scheduling rules
-----------------
-
-The scheduling scheme of the ThreadHandler library is as follows:
-1. Highest priority first.
-2. If the priority is the same then the thread with the earliest dedline is executed first.
-3. If two threads have the same dedline then the first created thread will execute first.
-4. A thread can only be intrrupted by threads with higher priority.
-5. Once a thread is executing it will block execution for all threads with lower priority untill the run function returns.
-6. The loop function has priority -128 compared to ThreadHandler threads.
+See the "ExecutionDemo" example for more info on how to use this library.
 
 Avoiding race conditions, Thread safety
 ---------------------------------------
