@@ -726,17 +726,3 @@ void interruptHandler() {
 }
 
 #endif
-
-#if !defined(__AVR__)
-//fix for missing throw functions
-namespace std
-{
-    void __throw_bad_function_call()
-    {
-    }
-
-    void __throw_bad_alloc()
-    {
-    }
-}
-#endif
