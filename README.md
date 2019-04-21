@@ -11,7 +11,7 @@ class MyThread : public Thread
 public:
     MyThread() : Thread(priority, period, offset){}
 
-    virtual ~MyThread1(){}
+    virtual ~MyThread(){}
 
     virtual void run()
     {
@@ -64,19 +64,12 @@ Scheduling rules
 ----------------
 
 The scheduling scheme of the ThreadHandler library is as follows:
-1. Highest priority first.
-2. If the priority is the same then
-   the thread with the earliest dedline 
-   is executed first.
-3. If two threads have the same dedline then
-   the first created thread will execute first.
-4. A thread can only be intrrupted by threads with
-   higher priority.
-5. Once a thread is executing it will block execution
-   for all threads with lower priority untill the run
-   function returns.
-6. The loop function has priority -128 compared to
-   ThreadHandler threads.
+1.  Highest priority first.
+2.  If the priority is the same then the thread with the earliest dedline is executed first.
+3.  If two threads have the same dedline then the first created thread will execute first.
+4.  A thread can only be intrrupted by threads with higher priority.
+5.  Once a thread is executing it will block execution for all threads with lower priority untill the run function returns.
+6.  The loop function has priority -128 compared to ThreadHandler threads.
 
 Avoiding race conditions, Thread safety
 ---------------------------------------
