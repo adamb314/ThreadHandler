@@ -26,6 +26,35 @@ private:
     Thread& operator=(const Thread&) = delete;
 };
 
+template <typename F>
+class FunctionThreadTemplate : public Thread
+{
+public:
+    FunctionThreadTemplate(int8_t priority, uint32_t period, uint32_t startOffset, F fun) :
+        Thread(priority, period, startOffset),
+        fun(fun)
+    {
+    }
+
+    virtual ~FunctionThreadTemplate()
+    {
+    }
+
+    virtual void run()
+    {
+        fun();
+    }
+
+private:
+    F fun;
+};
+
+template <typename F>
+FunctionThreadTemplate<F>* createThread(int8_t priority, uint32_t period, uint32_t startOffset, F fun)
+{
+    return new FunctionThreadTemplate<F>(priority, period, startOffset, fun);
+}
+
 class ThreadInterruptBlocker
 {
 public:

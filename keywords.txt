@@ -1,10 +1,10 @@
 Thread	KEYWORD1
-FunctionThread	KEYWORD1
 ThreadInterruptBlocker	KEYWORD1
 ThreadHandler	KEYWORD1
 ThreadHandler::InterruptTimerInterface	KEYWORD1
 InterruptTimer	KEYWORD1
 
+createThread	KEYWORD2
 enableThreadExecution	KEYWORD2
 getCpuLoad	KEYWORD2
 lock	KEYWORD2

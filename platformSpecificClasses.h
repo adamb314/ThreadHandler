@@ -1,33 +1,6 @@
 #if !defined(__AVR__)
 #undef min
 #undef max
-#include <functional>
-class FunctionThread : public Thread
-{
-public:
-    FunctionThread(int8_t priority, uint32_t period, uint32_t startOffset, std::function<void(void)> fun) :
-        Thread(priority, period, startOffset),
-        fun(fun)
-    {
-    }
-
-    virtual ~FunctionThread()
-    {
-    }
-
-    virtual void run()
-    {
-        fun();
-    }
-
-private:
-    std::function<void(void)> fun;
-};
-#endif
-
-#if !defined(__AVR__)
-#undef min
-#undef max
 #include <algorithm>
 class ThreadHandlerExecutionOrderOptimized : public ThreadHandler
 {
