@@ -109,20 +109,17 @@ public:
     }
 };
 
-//This is the third thread type with its run function
-//configured to run every 4s with an offset of 0s and priority 2.
-class TestThread3 : public Thread
-{
-public:
-    TestThread3() : Thread(2, 4000000, 0)
-    {
-    }
+//create the thread objects. When a thread object
+//is created it will add it self to the ThreadHandler
+//automatically.
+TestThread1* testThread1 = new TestThread1();
+TestThread2* testThread2 = new TestThread2();
 
-    virtual ~TestThread3()
-    {
-    }
-
-    virtual void run()
+//This creates the third thread object directly without first defining
+//a thread type. This thread will run its lambda function
+//every 4s with an offset of 0s and priority 2.
+Thread* testThread3 = createThread(2, 4000000, 0,
+    []()
     {
         {
             ThreadInterruptBlocker block;
@@ -139,23 +136,11 @@ public:
             ThreadInterruptBlocker block;
             Serial.println("           ^^");
         }
-    }
-};
-
-TestThread1* testThread1;
-TestThread2* testThread2;
-TestThread3* testThread3;
+    });
 
 void setup()
 {
     Serial.begin(115200);
-
-    //create the thread objects. When a thread object
-    //is created it will add it self to the ThreadHandler
-    //automatically.
-    testThread1 = new TestThread1();
-    testThread2 = new TestThread2();
-    testThread3 = new TestThread3();
 
     //start executing threads
     ThreadHandler::getInstance()->enableThreadExecution();

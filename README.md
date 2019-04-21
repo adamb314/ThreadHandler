@@ -36,6 +36,17 @@ delete threadObj;
 This should only be done from loop function or threads with
 lower priority to not delete a thread that is executing.
 
+Thread objects can also be created directly from lambda functions
+by using the createThread function:
+
+```c++
+Thread* myThread = createThread(priority, period, offset,
+    []()
+    {
+        //code to run
+    });
+```
+
 Execution of threads is initiated by calling:
 
 ```c++
@@ -113,26 +124,8 @@ driving the ThreadHandler. The user can implement there own InterruptTimer by in
 from the ThreadHandler::InterruptTimerInterface. This is usefull
 for adding support for new boards that this library does not support.
 
-Extra functionality for ARM based boards
+Extra optimization for ARM based boards
 ----------------------------------------
-
-ARM based boards have support for c++ STL which enables use of
-lambda functions with this library.
-
-```c++
-FunctionThread* threadObj = nullptr;
-
-void setup()
-{
-    threadObj = new FunctionThread(priority, period, offset,
-        []()
-        {
-            //code to run
-        });
-}
-```
-
-### Optimized thread scheduling
 
 For boards with c++ STL support there is an alternative configuration option.
 ```c++
