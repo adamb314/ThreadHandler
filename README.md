@@ -1,5 +1,13 @@
 # ThreadHandler Library
 
+Installing
+----------
+
+Download this repository as a .ZIP file and use
+"Add .ZIP Library" in the Arduino IDE to install it. This library depends on the
+library TimerOne. It can be installed from "Manage Libraries..." by searching
+for TimerOne.
+
 How to use
 ----------
 
