@@ -1,5 +1,7 @@
 # ThreadHandler Library
 
+#### Interrupting scheduling library for cyclic threads
+
 Installing
 ----------
 
