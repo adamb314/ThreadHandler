@@ -7,7 +7,7 @@ Installing
 
 Download this repository as a .ZIP file and use "Add .ZIP Library" in the Arduino IDE to install it. This library depends on the library TimerOne. It can be installed from "Manage Libraries..." by searching for TimerOne.
 
-Execution demonstration examle
+Execution demonstration example
 ------------------------------
 
 This library comes with an example which can be found under "Examples/ThreadHandler/ExecutionDemo" in the Arduino IDE. In this example three threads are created and the serial printout show how the execution of the different threads is split up by the library.
@@ -45,17 +45,18 @@ Scheduling rules
 ----------------
 
 The scheduling scheme of the ThreadHandler library is as follows:
+
 1. Highest priority first.
-2. If the priority is the same then the thread with the earliest dedline is executed first.
-3. If two threads have the same dedline then the first created thread will execute first.
-4. A thread can only be intrrupted by threads with higher priority.
-5. Once a thread is executing it will block execution for all threads with lower priority untill the run function returns.
+2. If the priority is the same then the thread with the earliest deadline is executed first.
+3. If two threads have the same deadline then the first created thread will execute first.
+4. A thread can only be interrupted by threads with higher priority.
+5. Once a thread is executing it will block execution for all threads with lower priority until the run function returns.
 6. The loop function has priority -128 compared to ThreadHandler threads.
 
 How to use
 ----------
 
-A thread type is created by inhereting the Thread class:
+A thread type is created by inheriting the Thread class:
 
 ```c++
 class MyThread : public Thread
@@ -112,7 +113,7 @@ See the "ExecutionDemo" example for more info on how to use this library.
 Avoiding race conditions, Thread safety
 ---------------------------------------
 
-To avoid race conditions use the ThreadInterruptBlocker class. When creating a ThreadInterruptBlocker object the interrupt timer interrupt vector is dissabled and when it is destroyd it enables the interrupt again. It does not affect global interrupts, only the interrupt timer. The blocker object also has a lock and an unlock function to be able to dissable/enable interrupts without creating/destroying blocker objects.
+To avoid race conditions use the ThreadInterruptBlocker class. When creating a ThreadInterruptBlocker object the interrupt timer interrupt vector is disabled and when it is destroyed it enables the interrupt again. It does not affect global interrupts, only the interrupt timer. The blocker object also has a lock and an unlock function to be able to disable/enable interrupts without creating/destroying blocker objects.
 
 ### Example use
 ```c++
@@ -221,7 +222,7 @@ private:
 };
 ```
 
-This thread will be expected ten times each second instead of once, but only take a couple of cpu cycles to complete and therefore blocking lower priority threads as little as possible.
+This thread will be expected ten times each second instead of once, but only take a couple of CPU cycles to complete and therefore blocking lower priority threads as little as possible.
 
 Configuring
 -----------
@@ -230,13 +231,13 @@ To configures the interrupt timer ticks the following macro is used:
 ```c++
 SET_THREAD_HANDLER_TICK(tickTime);
 ```
-where tickTime is in us (1000 gives 1ms). This tick time will be the lowest time resolution for thread periods and offsets. Setting the value to zero leaves the Interrupt timers defautl tick, this is usefull since this setting will not be in conflict with other libraries and analogWrites.
+where tickTime is in us (1000 gives 1ms). This tick time will be the lowest time resolution for thread periods and offsets. Setting the value to zero leaves the Interrupt timers default tick, this is useful since this setting will not be in conflict with other libraries and analogWrites.
 
-To setup the ThreadHandler the following macro has to be used someware in the code.
+To setup the ThreadHandler the following macro has to be used somewhere in the code.
 ```c++
 THREAD_HANDLER(InterruptTimer::getInstance());
 ```
-This macro configures which timer should be used for generating the interrupts driving the ThreadHandler. The user can implement there own InterruptTimer by inheriting from the ThreadHandler::InterruptTimerInterface. This is usefull for adding support for new boards that this library does not support.
+This macro configures which timer should be used for generating the interrupts driving the ThreadHandler. The user can implement there own InterruptTimer by inheriting from the ThreadHandler::InterruptTimerInterface. This is useful for adding support for new boards that this library does not support.
 
 Extra optimization for ARM based boards
 ----------------------------------------
@@ -245,9 +246,9 @@ For boards with c++ STL support there is an alternative configuration option.
 ```c++
 THREAD_HANDLER_WITH_EXECUTION_ORDER_OPTIMIZED(InterruptTimer::getInstance());
 ```
-This configures the ThreadHandler to precalculate the execution order of all threads with the same priority and stores it. This changes how the cpu load from the thread scheduling scales with number of threads. The default configuration will search through all threads before calling run on one. This means that the overhead before calling the right thread scales by O(n) where n is the number of threads. With optimization active the scheduler only need to check the unique number of thread priority groups, which means that it instead scales by O(p) where p is the number of unique priorities.
+This configures the ThreadHandler to precalculate the execution order of all threads with the same priority and stores it. This changes how the CPU load from the thread scheduling scales with number of threads. The default configuration will search through all threads before calling run on one. This means that the overhead before calling the right thread scales by O(n) where n is the number of threads. With optimization active the scheduler only need to check the unique number of thread priority groups, which means that it instead scales by O(p) where p is the number of unique priorities.
 
-The downside to the optimization is that it requiers more memory since the precalculated execution order has to be stored. When creating and destroying threads after enabling thread execution by calling
+The downside to the optimization is that it requires more memory since the precalculated execution order has to be stored. When creating and destroying threads after enabling thread execution by calling
 ```c++
 ThreadHandler::getInstance()->enableThreadExecution();
 ```
@@ -329,7 +330,7 @@ void interruptHandler() {
     //the TimerOne implementation dissables all
     //interrupts before calling the intrrupt handler.
     //We do not want that so calling intterrupts() to
-    //enable global interrupts agin
+    //enable global interrupts again
     interrupts();
 
     //calling the protected InterruptTimerInterface::interruptRun
