@@ -1,5 +1,10 @@
 #include "ThreadHandler.h"
 
+void simulateWork()
+{
+    delay(1000);
+}
+
 //Configures the interrupt timer ticks in us (1000 gives 1ms).
 //This tick time will be the lowest time resolution for thread periods and offsets.
 //Setting the value to 0 leaves the Interrupt timers defautl tick, this is usefull since
@@ -61,7 +66,7 @@ public:
         }
         for (int i = 0; i < 3; i++)
         {
-            delay(1000);
+            simulateWork();
             ThreadInterruptBlocker block;
             Serial.println("     | #|");
         }
@@ -98,7 +103,7 @@ public:
         }
         for (int i = 0; i < 3; i++)
         {
-            delay(1000);
+            simulateWork();
             ThreadInterruptBlocker block;
             Serial.println("     | #|");
         }
@@ -128,7 +133,7 @@ Thread* testThread3 = createThread(2, 4000000, 0,
         }
         for (int i = 0; i < 1; i++)
         {
-            delay(1000);
+            simulateWork();
             ThreadInterruptBlocker block;
             Serial.println("          | #|");
         }
@@ -159,7 +164,7 @@ void loop()
     }
     for (int i = 0; i < 6; i++)
     {
-        delay(1000);
+        simulateWork();
         ThreadInterruptBlocker block;
         Serial.println("| #|");
     }
