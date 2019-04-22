@@ -140,6 +140,105 @@ int copyOfCriticalVariable = 0;
 //use copyOfCriticalVariable
 ```
 
+Avoiding blocking delays
+------------------------
+This library has no function or system
+to pause the execution of a thread and allow others to run. The only way for a thread to handover execution is by returning. This means that if a high priority thread calls delay
+then that delay time will be added to all threads with lower priority as well, since they have to wait for the high priority thread to finish.
+
+Let's say we want a thread to generate the following LED blinking pattern:
+
+```
+on
+wait 300ms
+off
+wait 100ms
+on
+wait 200ms
+off
+wait 400ms
+on
+wait 300ms
+off
+wait 100ms
+on
+wait 200ms
+off
+wait 400ms
+.
+.
+.
+```
+
+This could be accomplished with a thread like this:
+
+```c++
+class MyThread : public Thread
+{
+public:
+    MyThread() : Thread(priority, 1000000, 0){}
+
+    virtual ~MyThread(){}
+
+    virtual void run()
+    {
+        digitalWrite(13, HIGH);
+        delay(300);
+        digitalWrite(13, LOW);
+        delay(100);
+        digitalWrite(13, HIGH);
+        delay(200);
+        digitalWrite(13, LOW);
+    }
+};
+```
+But doing it like this will block all lower priority threads for 600ms every second, since it takes 600ms to execute the thread. This is not desirable. Instead, the recommended way of doing this is by creating a state machine:
+
+```c++
+class MyThread : public Thread
+{
+public:
+    MyThread() : Thread(priority, 100000, 0), state(0){}
+
+    virtual ~MyThread(){}
+
+    virtual void run()
+    {
+        switch (state)
+        {
+            case 0:
+                digitalWrite(13, HIGH);
+                break;
+
+            case 3:
+                digitalWrite(13, LOW);
+                break;
+
+            case 4:
+                digitalWrite(13, HIGH);
+                break;
+
+            case 6:
+                digitalWrite(13, LOW);
+                break;
+
+            default:
+                break;
+        }
+        state++;
+        if (state >= 10)
+        {
+            state = 0;
+        }
+    }
+
+private:
+    int state;
+};
+```
+
+This thread will be expected ten times each second instead of once, but only take a couple of cpu cycles to complete and therefore blocking lower priority threads as little as possible.
+
 Configuring
 -----------
 
