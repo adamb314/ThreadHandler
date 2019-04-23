@@ -548,8 +548,8 @@ void ThreadHandler::interruptRun(InterruptTimerInterface* caller)
             if (priorityOfRunningThread == -128)
             {
                 endTime = micros();
-                uint32_t timeDiff = static_cast<int32_t>(endTime - startTime);
-                uint32_t loadTimeDiff = static_cast<int32_t>(endTime - loadStartTime);
+                int32_t timeDiff = static_cast<int32_t>(endTime - startTime);
+                int32_t loadTimeDiff = static_cast<int32_t>(endTime - loadStartTime);
                 startTime = endTime;
 
                 totalTime += timeDiff;
