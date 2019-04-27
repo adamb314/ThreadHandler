@@ -15,7 +15,7 @@
 class Thread
 {
 public:
-    Thread(int8_t priority, uint32_t period, uint32_t startOffset);
+    Thread(int8_t priority, int32_t period, uint32_t startOffset);
 
     virtual ~Thread();
 
@@ -30,7 +30,7 @@ template <typename F>
 class FunctionThreadTemplate : public Thread
 {
 public:
-    FunctionThreadTemplate(int8_t priority, uint32_t period, uint32_t startOffset, F fun) :
+    FunctionThreadTemplate(int8_t priority, int32_t period, uint32_t startOffset, F fun) :
         Thread(priority, period, startOffset),
         fun(fun)
     {
@@ -50,7 +50,7 @@ private:
 };
 
 template <typename F>
-FunctionThreadTemplate<F>* createThread(int8_t priority, uint32_t period, uint32_t startOffset, F fun)
+FunctionThreadTemplate<F>* createThread(int8_t priority, int32_t period, uint32_t startOffset, F fun)
 {
     return new FunctionThreadTemplate<F>(priority, period, startOffset, fun);
 }
@@ -106,14 +106,14 @@ private:
 protected:
     ThreadHandler();
 
-    virtual void add(int8_t priority, uint32_t period, uint32_t startOffset, Thread* t);
+    virtual void add(int8_t priority, int32_t period, uint32_t startOffset, Thread* t);
 
     virtual void remove(const Thread* t);
 
     class InternalThreadHolder
     {
     public:
-        InternalThreadHolder(int8_t priority, uint32_t period, uint32_t startOffset, Thread* t);
+        InternalThreadHolder(int8_t priority, int32_t period, uint32_t startOffset, Thread* t);
 
         ~InternalThreadHolder();
 
@@ -140,7 +140,7 @@ protected:
         bool initiated;
         uint32_t runAtTimestamp;
         int32_t timeUntillRun;
-        uint32_t period;
+        int32_t period;
         uint32_t startOffset;
         int8_t priority;
     };

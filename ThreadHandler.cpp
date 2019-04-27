@@ -21,7 +21,7 @@ ThreadHandler* createAndConfigureThreadHandler()
     }
 }
 
-Thread::Thread(int8_t priority, uint32_t period, uint32_t startOffset)
+Thread::Thread(int8_t priority, int32_t period, uint32_t startOffset)
 {
     ThreadHandler::getInstance()->add(priority, period, startOffset, this);
 }
@@ -77,7 +77,7 @@ void ThreadInterruptBlocker::unlock()
     }
 }
 
-ThreadHandler::InternalThreadHolder::InternalThreadHolder(int8_t priority, uint32_t period, uint32_t startOffset, Thread* t) :
+ThreadHandler::InternalThreadHolder::InternalThreadHolder(int8_t priority, int32_t period, uint32_t startOffset, Thread* t) :
     thread(t),
     initiated(false),
     runAtTimestamp(0),
@@ -268,7 +268,7 @@ ThreadHandler::~ThreadHandler()
 {
 }
 
-void ThreadHandler::add(int8_t priority, uint32_t period, uint32_t startOffset, Thread* t)
+void ThreadHandler::add(int8_t priority, int32_t period, uint32_t startOffset, Thread* t)
 {
     threadHolders.add(new InternalThreadHolder(priority, period, startOffset, t));
 }
@@ -416,7 +416,7 @@ ThreadHandlerExecutionOrderOptimized::ThreadHandlerExecutionOrderOptimized() :
 }
 
 
-void ThreadHandlerExecutionOrderOptimized::add(int8_t priority, uint32_t period, uint32_t startOffset, Thread* t)
+void ThreadHandlerExecutionOrderOptimized::add(int8_t priority, int32_t period, uint32_t startOffset, Thread* t)
 {
     executionOrderGenerated = false;
     ThreadHandler::add(priority, period, startOffset, t);
