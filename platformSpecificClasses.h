@@ -7,7 +7,7 @@ class ThreadHandlerExecutionOrderOptimized : public ThreadHandler
 public:
     virtual ~ThreadHandlerExecutionOrderOptimized();
 
-    virtual void add(int8_t priority, uint32_t period, uint32_t startOffset, Thread* t);
+    virtual void add(int8_t priority, int32_t period, uint32_t startOffset, Thread* t);
 
     virtual void remove(const Thread* t);
 
