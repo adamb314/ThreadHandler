@@ -5,7 +5,7 @@
 Installing
 ----------
 
-Download this repository as a .ZIP file and use "Add .ZIP Library" in the Arduino IDE to install it. This library depends on the library TimerOne. It can be installed from "Manage Libraries..." by searching for TimerOne.
+Download this repository as a .ZIP file and use "Add .ZIP Library" in the Arduino IDE to install it. This library depends on the libraries TimerOne and LinkedList. They can be installed from "Manage Libraries..." by searching for TimerOne and LinkedList.
 
 Execution demonstration example
 ------------------------------
