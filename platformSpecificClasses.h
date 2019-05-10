@@ -11,6 +11,8 @@ public:
 
     virtual void remove(const Thread* t);
 
+    virtual void updated(const Thread* t);
+
 private:
     ThreadHandlerExecutionOrderOptimized();
 

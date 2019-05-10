@@ -12,6 +12,35 @@
 
 #include "configuringMacros.h"
 
+class FunctionalWrapper
+{
+public:
+    FunctionalWrapper(){};
+    ~FunctionalWrapper(){};
+
+    virtual void operator()() = 0;
+};
+
+template <typename F>
+class FunctionalWrapperTemplate : public FunctionalWrapper
+{
+public:
+    FunctionalWrapperTemplate(F fun) :
+        fun(fun)
+    {
+    }
+
+    ~FunctionalWrapperTemplate(){};
+
+    virtual void operator()()
+    {
+        fun();
+    }
+
+private:
+    F fun;
+};
+
 class Thread
 {
 public:
@@ -20,6 +49,18 @@ public:
     virtual ~Thread();
 
     virtual void run() = 0;
+
+    virtual bool firstCodeBlock()
+    {
+        return true;
+    }
+
+    virtual bool splitIntoCodeBlocks()
+    {
+        return false;
+    }
+
+    static void delayNextCodeBlock(int32_t delay);
 
 private:
     Thread(const Thread&) = delete;
@@ -55,6 +96,34 @@ FunctionThreadTemplate<F>* createThread(int8_t priority, int32_t period, uint32_
     return new FunctionThreadTemplate<F>(priority, period, startOffset, fun);
 }
 
+class CodeBlocksThread : public Thread
+{
+public:
+    template <typename F>
+    CodeBlocksThread(int8_t priority, int32_t period, uint32_t startOffset, F fun);
+
+    virtual ~CodeBlocksThread();
+
+    template <typename F>
+    void addCodeBlock(F fun);
+
+    virtual void run();
+
+    virtual bool firstCodeBlock();
+
+    virtual bool splitIntoCodeBlocks();
+
+private:
+    size_t nextFunBlockIndex;
+    LinkedList<FunctionalWrapper*> funList;
+};
+
+template <typename F>
+CodeBlocksThread* createThreadWithCodeBlocks(int8_t priority, int32_t period, uint32_t startOffset, F fun)
+{
+    return new CodeBlocksThread(priority, period, startOffset, fun);
+}
+
 class ThreadInterruptBlocker
 {
 public:
@@ -83,6 +152,8 @@ public:
 
     uint16_t getCpuLoad();
 
+    void delayNextCodeBlock(int32_t delay);
+
     class InterruptTimerInterface
     {
     public:
@@ -110,6 +181,8 @@ protected:
 
     virtual void remove(const Thread* t);
 
+    virtual void updated(const Thread* t);
+
     class InternalThreadHolder
     {
     public:
@@ -129,6 +202,12 @@ protected:
         bool isHolderFor(const Thread* t) const;
 
         int8_t getPriority() const;
+
+        void delayNextCodeBlock(int32_t delay);
+
+        bool firstCodeBlock();
+
+        bool splitIntoCodeBlocks();
 
 #if !defined(__AVR__)
         static std::vector<InternalThreadHolder*> generateExecutionOrderVector(const std::vector<InternalThreadHolder*>& threadHolders);
@@ -152,15 +231,32 @@ protected:
     InterruptTimerInterface* interruptTimer;
 
     bool threadExecutionEnabled;
+    InternalThreadHolder* currentInternalThreadHolder;
     int8_t priorityOfRunningThread;
     uint32_t cpuLoadTime;
     uint32_t totalTime;
     LinkedList<InternalThreadHolder*> threadHolders;
 
     friend Thread;
+    friend CodeBlocksThread;
     friend ThreadInterruptBlocker;
     friend ThreadHandler* createAndConfigureThreadHandler();
 };
+
+template <typename F>
+CodeBlocksThread::CodeBlocksThread(int8_t priority, int32_t period, uint32_t startOffset, F fun) :
+    Thread(priority, period, startOffset)
+{
+    addCodeBlock<F>(fun);
+    nextFunBlockIndex = 0;
+}
+
+template <typename F>
+void CodeBlocksThread::addCodeBlock(F fun)
+{
+    funList.add(new FunctionalWrapperTemplate<F>(fun));
+    ThreadHandler::getInstance()->updated(this);
+}
 
 #include "platformSpecificClasses.h"
 

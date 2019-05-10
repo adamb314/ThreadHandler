@@ -31,6 +31,41 @@ Thread::~Thread()
     ThreadHandler::getInstance()->remove(this);
 }
 
+void Thread::delayNextCodeBlock(int32_t delay)
+{
+    ThreadHandler::getInstance()->delayNextCodeBlock(delay);
+}
+
+CodeBlocksThread::~CodeBlocksThread()
+{
+    while (funList.size() != 0)
+    {
+        delete funList.get(0);
+        funList.remove(0);
+    }
+}
+
+void CodeBlocksThread::run()
+{
+    FunctionalWrapper& f = *funList.get(nextFunBlockIndex);
+    f();
+    ++nextFunBlockIndex;
+    if (nextFunBlockIndex == funList.size())
+    {
+        nextFunBlockIndex = 0;
+    }
+}
+
+bool CodeBlocksThread::firstCodeBlock()
+{
+    return nextFunBlockIndex == 0;
+}
+
+bool CodeBlocksThread::splitIntoCodeBlocks()
+{
+    return funList.size() > 1;
+}
+
 uint32_t ThreadInterruptBlocker::blockerCount = 0;
 
 ThreadInterruptBlocker::ThreadInterruptBlocker() :
@@ -97,6 +132,7 @@ void ThreadHandler::InternalThreadHolder::updateCurrentTime(uint32_t currnetTime
     if (!initiated)
     {
         runAtTimestamp = currnetTime + startOffset;
+        startOffset = runAtTimestamp;
         initiated = true;
     }
 
@@ -143,7 +179,12 @@ bool ThreadHandler::InternalThreadHolder::higherPriorityThan(const InternalThrea
 void ThreadHandler::InternalThreadHolder::runThread()
 {
     thread->run();
-    runAtTimestamp += period;
+    if (thread->firstCodeBlock())
+    {
+        runAtTimestamp = startOffset + period;
+        startOffset = runAtTimestamp;
+    }
+
 }
 
 bool ThreadHandler::InternalThreadHolder::isHolderFor(const Thread* t) const
@@ -154,6 +195,21 @@ bool ThreadHandler::InternalThreadHolder::isHolderFor(const Thread* t) const
 int8_t ThreadHandler::InternalThreadHolder::getPriority() const
 {
     return priority;
+}
+
+void ThreadHandler::InternalThreadHolder::delayNextCodeBlock(int32_t delay)
+{
+    runAtTimestamp = micros() + delay;
+}
+
+bool ThreadHandler::InternalThreadHolder::firstCodeBlock()
+{
+    return thread->firstCodeBlock();
+}
+
+bool ThreadHandler::InternalThreadHolder::splitIntoCodeBlocks()
+{
+    return thread->splitIntoCodeBlocks();
 }
 
 #if !defined(__AVR__)
@@ -169,74 +225,88 @@ std::vector<ThreadHandler::InternalThreadHolder*> ThreadHandler::InternalThreadH
     {
         std::vector<uint32_t> executeTimeRingBuffer;
 
+        bool threadSplitIntoCodeBlocksExists = false;
+
         for (auto& th : threadHolders)
         {
             th->runAtTimestamp = th->startOffset;
+
+            if (th->splitIntoCodeBlocks())
+            {
+                threadSplitIntoCodeBlocksExists = true;
+            }
         }
 
-        while (true)
+        if (threadSplitIntoCodeBlocksExists)
         {
-            InternalThreadHolder* nextToExecute = threadHolders[0];
-            for (auto& th : threadHolders)
+            executeRingBuffer.clear();
+        }
+        else
+        {
+            while (true)
             {
-                if (nextToExecute->runAtTimestamp > th->runAtTimestamp)
+                InternalThreadHolder* nextToExecute = threadHolders[0];
+                for (auto& th : threadHolders)
                 {
-                    nextToExecute = th;
+                    if (nextToExecute->runAtTimestamp > th->runAtTimestamp)
+                    {
+                        nextToExecute = th;
+                    }
                 }
-            }
 
-            executeRingBuffer.push_back(nextToExecute);
-            executeTimeRingBuffer.push_back(nextToExecute->runAtTimestamp);
-            nextToExecute->runAtTimestamp += nextToExecute->period;
+                executeRingBuffer.push_back(nextToExecute);
+                executeTimeRingBuffer.push_back(nextToExecute->runAtTimestamp);
+                nextToExecute->runAtTimestamp += nextToExecute->period;
 
-            auto startPatternIterator = executeRingBuffer.begin();
-            auto temp = std::find(executeRingBuffer.rbegin(), executeRingBuffer.rend(), executeRingBuffer.front());
-            auto endPatternIterator = executeRingBuffer.begin() + std::distance(temp, executeRingBuffer.rend() - 1);
+                auto startPatternIterator = executeRingBuffer.begin();
+                auto temp = std::find(executeRingBuffer.rbegin(), executeRingBuffer.rend(), executeRingBuffer.front());
+                auto endPatternIterator = executeRingBuffer.begin() + std::distance(temp, executeRingBuffer.rend() - 1);
 
-            size_t startPatternIndex = startPatternIterator - executeRingBuffer.begin();
-            size_t endPatternIndex = endPatternIterator - executeRingBuffer.begin();
+                size_t startPatternIndex = startPatternIterator - executeRingBuffer.begin();
+                size_t endPatternIndex = endPatternIterator - executeRingBuffer.begin();
 
-            if (startPatternIndex == endPatternIndex)
-            {
-                continue;
-            }
-
-            uint32_t startPatternTimeOffset = executeTimeRingBuffer[startPatternIndex];
-            uint32_t endPatternTimeOffset = executeTimeRingBuffer[endPatternIndex];
-
-            bool patternMach = true;
-            for (auto& th : threadHolders)
-            {
-                auto itInStartPattern = std::find(startPatternIterator, executeRingBuffer.end(), th);
-                auto itInEndPattern = std::find(endPatternIterator, executeRingBuffer.end(), th);
-
-                if (itInStartPattern == executeRingBuffer.end() ||
-                    itInEndPattern == executeRingBuffer.end())
+                if (startPatternIndex == endPatternIndex)
                 {
-                    patternMach = false;
+                    continue;
+                }
+
+                uint32_t startPatternTimeOffset = executeTimeRingBuffer[startPatternIndex];
+                uint32_t endPatternTimeOffset = executeTimeRingBuffer[endPatternIndex];
+
+                bool patternMach = true;
+                for (auto& th : threadHolders)
+                {
+                    auto itInStartPattern = std::find(startPatternIterator, executeRingBuffer.end(), th);
+                    auto itInEndPattern = std::find(endPatternIterator, executeRingBuffer.end(), th);
+
+                    if (itInStartPattern == executeRingBuffer.end() ||
+                        itInEndPattern == executeRingBuffer.end())
+                    {
+                        patternMach = false;
+                        break;
+                    }
+
+                    size_t indexInStartPattern = itInStartPattern - startPatternIterator;
+                    size_t indexInEndPattern = itInEndPattern - startPatternIterator;
+
+                    if (executeTimeRingBuffer[indexInStartPattern] - startPatternTimeOffset !=
+                        executeTimeRingBuffer[indexInEndPattern] - endPatternTimeOffset)
+                    {
+                        patternMach = false;
+                        break;
+                    }
+                }
+
+                if (patternMach)
+                {
+                    executeRingBuffer.erase(endPatternIterator, executeRingBuffer.end());
                     break;
                 }
-
-                size_t indexInStartPattern = itInStartPattern - startPatternIterator;
-                size_t indexInEndPattern = itInEndPattern - startPatternIterator;
-
-                if (executeTimeRingBuffer[indexInStartPattern] - startPatternTimeOffset !=
-                    executeTimeRingBuffer[indexInEndPattern] - endPatternTimeOffset)
+                else if (executeRingBuffer.size() > 5 * threadHolders.size())
                 {
-                    patternMach = false;
+                    executeRingBuffer.clear();
                     break;
                 }
-            }
-
-            if (patternMach)
-            {
-                executeRingBuffer.erase(endPatternIterator, executeRingBuffer.end());
-                break;
-            }
-            else if (executeRingBuffer.size() > 5 * threadHolders.size())
-            {
-                executeRingBuffer.clear();
-                break;
             }
         }
     }
@@ -258,6 +328,7 @@ ThreadHandler* ThreadHandler::getInstance()
 ThreadHandler::ThreadHandler() :
     interruptTimer(nullptr),
     threadExecutionEnabled(false),
+    currentInternalThreadHolder(nullptr),
     priorityOfRunningThread(-128),
     cpuLoadTime(0),
     totalTime(0)
@@ -287,6 +358,10 @@ void ThreadHandler::remove(const Thread* t)
             i++;
         }
     }
+}
+
+void ThreadHandler::updated(const Thread* t)
+{
 }
 
 ThreadHandler::InternalThreadHolder* ThreadHandler::getNextThreadToRun(uint32_t currentTimestamp)
@@ -333,6 +408,11 @@ uint16_t ThreadHandler::getCpuLoad()
 
     uint16_t out = static_cast<uint16_t>((cpuLoadTime * 1000) / totalTime);
     return out;
+}
+
+void ThreadHandler::delayNextCodeBlock(int32_t delay)
+{
+    currentInternalThreadHolder->delayNextCodeBlock(delay);
 }
 
 #if !defined(__AVR__)
@@ -426,6 +506,12 @@ void ThreadHandlerExecutionOrderOptimized::remove(const Thread* t)
 {
     executionOrderGenerated = false;
     ThreadHandler::remove(t);
+}
+
+void ThreadHandlerExecutionOrderOptimized::updated(const Thread* t)
+{
+    executionOrderGenerated = false;
+    ThreadHandler::updated(t);
 }
 
 ThreadHandlerExecutionOrderOptimized::~ThreadHandlerExecutionOrderOptimized()
@@ -535,12 +621,15 @@ void ThreadHandler::interruptRun(InterruptTimerInterface* caller)
         {
             threadExecuted = true;
             int8_t temp = priorityOfRunningThread;
+            auto temp2 = currentInternalThreadHolder;
             priorityOfRunningThread = threadToRunHolder->getPriority();
+            currentInternalThreadHolder = threadToRunHolder;
             blocker.unlock();
 
             threadToRunHolder->runThread();
 
             blocker.lock();
+            currentInternalThreadHolder = temp2;
             priorityOfRunningThread = temp;
         }
         else
