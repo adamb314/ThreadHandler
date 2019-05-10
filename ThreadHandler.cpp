@@ -47,7 +47,7 @@ CodeBlocksThread::~CodeBlocksThread()
 
 void CodeBlocksThread::run()
 {
-    FunctionalWrapper& f = *funList.get(nextFunBlockIndex);
+    FunctionalWrapper& f = *reinterpret_cast<FunctionalWrapper*>(funList.get(nextFunBlockIndex));
     f();
     ++nextFunBlockIndex;
     if (nextFunBlockIndex == funList.size())
@@ -66,7 +66,7 @@ bool CodeBlocksThread::splitIntoCodeBlocks()
     return funList.size() > 1;
 }
 
-uint32_t ThreadInterruptBlocker::blockerCount = 0;
+unsigned int ThreadInterruptBlocker::blockerCount = 0;
 
 ThreadInterruptBlocker::ThreadInterruptBlocker() :
     iAmLocked(false)
@@ -348,7 +348,7 @@ void ThreadHandler::remove(const Thread* t)
 {
     for (int i = 0; i < threadHolders.size();)
     {
-        if (threadHolders.get(i)->isHolderFor(t))
+        if ((reinterpret_cast<InternalThreadHolder*>(threadHolders.get(i)))->isHolderFor(t))
         {
             InternalThreadHolder* th = threadHolders.remove(i);
             delete th;
@@ -370,7 +370,7 @@ ThreadHandler::InternalThreadHolder* ThreadHandler::getNextThreadToRun(uint32_t 
 
     for (int i = 0; i < threadHolders.size(); i++)
     {
-        InternalThreadHolder& th = *threadHolders.get(i);
+        InternalThreadHolder& th = *(reinterpret_cast<InternalThreadHolder*>(threadHolders.get(i)));
         if (th.getPriority() <= priorityOfRunningThread)
         {
             continue;
@@ -524,7 +524,7 @@ void ThreadHandlerExecutionOrderOptimized::generateExecutionOrder()
 
     for (int i = 0; i < threadHolders.size(); i++)
     {
-        InternalThreadHolder& th = *threadHolders.get(i);
+        InternalThreadHolder& th = *(reinterpret_cast<InternalThreadHolder*>(threadHolders.get(i)));
 
         auto it = priorityGroups.begin();
         for (; it != priorityGroups.end(); ++it)
@@ -637,8 +637,8 @@ void ThreadHandler::interruptRun(InterruptTimerInterface* caller)
             if (priorityOfRunningThread == -128)
             {
                 endTime = micros();
-                int32_t timeDiff = static_cast<int32_t>(endTime - startTime);
-                int32_t loadTimeDiff = static_cast<int32_t>(endTime - loadStartTime);
+                int timeDiff = static_cast<int>(endTime - startTime);
+                int loadTimeDiff = static_cast<int>(endTime - loadStartTime);
                 startTime = endTime;
 
                 totalTime += timeDiff;

@@ -115,7 +115,7 @@ public:
 
 private:
     size_t nextFunBlockIndex;
-    LinkedList<FunctionalWrapper*> funList;
+    LinkedList<void*> funList;
 };
 
 template <typename F>
@@ -136,7 +136,7 @@ public:
     void unlock();
 
 private:
-    static uint32_t blockerCount;
+    static unsigned int blockerCount;
 
     bool iAmLocked;
 };
@@ -233,9 +233,9 @@ protected:
     bool threadExecutionEnabled;
     InternalThreadHolder* currentInternalThreadHolder;
     int8_t priorityOfRunningThread;
-    uint32_t cpuLoadTime;
-    uint32_t totalTime;
-    LinkedList<InternalThreadHolder*> threadHolders;
+    unsigned int cpuLoadTime;
+    unsigned int totalTime;
+    LinkedList<void*> threadHolders;
 
     friend Thread;
     friend CodeBlocksThread;
