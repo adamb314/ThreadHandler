@@ -50,6 +50,11 @@ private:
 #endif
 
 #if defined(_SAMD21_)
+extern "C"
+{
+void tc5InterruptRunCaller();
+}
+
 class InterruptTimer : public ThreadHandler::InterruptTimerInterface
 {
 public:
@@ -74,7 +79,7 @@ private:
 
     void disable();
 
-    friend void TC5_Handler();
+    friend void tc5InterruptRunCaller();
 };
 #elif defined(__AVR__)
 #include <TimerOne.h>
