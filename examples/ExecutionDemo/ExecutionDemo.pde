@@ -121,6 +121,18 @@ TestThread1* testThread1 = new TestThread1();
 TestThread2* testThread2 = new TestThread2();
 
 CodeBlocksThread* testThread3 = nullptr;
+unsigned int test = 0;
+FunctionalWrapper<bool>* delayFunction = createFunctionalWrapper<bool>(
+    [&test]()
+    {
+        test++;
+        if (test > 1000)
+        {
+            test = 0;
+            return true;
+        }
+        return false;
+    });
 
 void setup()
 {
@@ -147,7 +159,8 @@ void setup()
                 ThreadInterruptBlocker block;
                 Serial.println("           ^^");
             }
-            Thread::delayNextCodeBlock(500000);
+            //Thread::delayNextCodeBlock(500000);
+            Thread::delayNextCodeBlockUntil(delayFunction);
         });
 
     testThread3->addCodeBlock(
