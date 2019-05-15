@@ -36,6 +36,11 @@ void Thread::delayNextCodeBlock(int32_t delay)
     ThreadHandler::getInstance()->delayNextCodeBlock(delay);
 }
 
+void Thread::delayNextCodeBlockUntil(FunctionalWrapper<bool>* fun)
+{
+    ThreadHandler::getInstance()->delayNextCodeBlockUntil(fun);
+}
+
 CodeBlocksThread::~CodeBlocksThread()
 {
     while (funList.size() != 0)
@@ -119,7 +124,8 @@ ThreadHandler::InternalThreadHolder::InternalThreadHolder(int8_t priority, int32
     timeUntillRun(0),
     period(period),
     startOffset(startOffset),
-    priority(priority)
+    priority(priority),
+    delayCodeBlockUntilFun(nullptr)
 {
 }
 
@@ -134,6 +140,23 @@ void ThreadHandler::InternalThreadHolder::updateCurrentTime(uint32_t currnetTime
         runAtTimestamp = currnetTime + startOffset;
         startOffset = runAtTimestamp;
         initiated = true;
+    }
+
+    if (delayCodeBlockUntilFun != nullptr &&
+        thread->splitIntoCodeBlocks())
+    {
+        runAtTimestamp = currnetTime;
+        if ((*delayCodeBlockUntilFun)())
+        {
+            delayCodeBlockUntilFun = nullptr;
+            timeUntillRun = 0;
+        }
+        else
+        {
+            runAtTimestamp += 1;
+            timeUntillRun = 1;
+        }
+        return;
     }
 
     timeUntillRun = static_cast<int32_t>(runAtTimestamp - currnetTime);
@@ -200,6 +223,11 @@ int8_t ThreadHandler::InternalThreadHolder::getPriority() const
 void ThreadHandler::InternalThreadHolder::delayNextCodeBlock(int32_t delay)
 {
     runAtTimestamp = micros() + delay;
+}
+
+void ThreadHandler::InternalThreadHolder::delayNextCodeBlockUntil(FunctionalWrapper<bool>* fun)
+{
+    delayCodeBlockUntilFun = fun;
 }
 
 bool ThreadHandler::InternalThreadHolder::firstCodeBlock()
@@ -413,6 +441,11 @@ uint16_t ThreadHandler::getCpuLoad()
 void ThreadHandler::delayNextCodeBlock(int32_t delay)
 {
     currentInternalThreadHolder->delayNextCodeBlock(delay);
+}
+
+void ThreadHandler::delayNextCodeBlockUntil(FunctionalWrapper<bool>* fun)
+{
+    currentInternalThreadHolder->delayNextCodeBlockUntil(fun);
 }
 
 #if !defined(__AVR__)

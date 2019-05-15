@@ -69,6 +69,8 @@ public:
 
     static void delayNextCodeBlock(int32_t delay);
 
+    static void delayNextCodeBlockUntil(FunctionalWrapper<bool>* fun);
+
 private:
     Thread(const Thread&) = delete;
     Thread& operator=(const Thread&) = delete;
@@ -161,6 +163,8 @@ public:
 
     void delayNextCodeBlock(int32_t delay);
 
+    void delayNextCodeBlockUntil(FunctionalWrapper<bool>* fun);
+
     class InterruptTimerInterface
     {
     public:
@@ -212,6 +216,8 @@ protected:
 
         void delayNextCodeBlock(int32_t delay);
 
+        void delayNextCodeBlockUntil(FunctionalWrapper<bool>* fun);
+
         bool firstCodeBlock();
 
         bool splitIntoCodeBlocks();
@@ -229,6 +235,7 @@ protected:
         int32_t period;
         uint32_t startOffset;
         int8_t priority;
+        FunctionalWrapper<bool>* delayCodeBlockUntilFun;
     };
 
     virtual InternalThreadHolder* getNextThreadToRun(uint32_t currentTimestamp);
