@@ -350,7 +350,7 @@ void ThreadHandler::remove(const Thread* t)
     {
         if ((reinterpret_cast<InternalThreadHolder*>(threadHolders.get(i)))->isHolderFor(t))
         {
-            InternalThreadHolder* th = threadHolders.remove(i);
+            void* th = threadHolders.remove(i);
             delete th;
         }
         else
