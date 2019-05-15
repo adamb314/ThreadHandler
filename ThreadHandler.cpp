@@ -765,12 +765,82 @@ void InterruptTimer::disable()
 
 extern "C"
 {
-//this function gets called by the TC5 interrupt
-void TC5_Handler();
+void tc5InterruptRunCaller()
+{
+    InterruptTimer::getInstance()->interruptRun();
 }
 
-void TC5_Handler() {
-    InterruptTimer::getInstance()->interruptRun();
+__attribute__((naked))
+void TC5_Handler()
+{
+    asm volatile(
+    // Now we are in Handler mode, using Main Stack, and
+    // SP should be Double word aligned
+    "  PUSH {R4, LR}       \n"// Need to save LR in stack, keep double word alignment
+    );
+
+    TC5->COUNT16.INTFLAG.reg = TC_INTFLAG_OVF;
+    NVIC_DisableIRQ(TC5_IRQn);
+
+    asm volatile(
+    "  SUB  SP, SP , #0x20 \n"// Reserve 8 words for dummy stack frame for return
+    "  MOV  R2, SP\n"
+    "  LDR  R3,=SysTick_Handler_thread_pt\n"
+    "  STR  R3,[R2, #24]   \n"// Set return address as SysTick_Handler_thread_pt
+    "  LDR  R3,=0x01000000 \n"// Initial xPSR when running Reentrant_SysTick_Handler
+    "  STR  R3,[R2, #28]   \n"// Put in new created stack frame
+    "  LDR  R3,=0xFFFFFFF9 \n"// Return to Thread with Main Stack
+    "  BX   R3             \n"// Exception return with new created stack frame
+    "SysTick_Handler_thread_pt:\n"
+    );
+
+    NVIC_EnableIRQ(TC5_IRQn);
+
+    asm volatile(
+    "  BL   tc5InterruptRunCaller \n"// Call real ISR in thread mode
+    "  SVC  0              \n"// Use SVC to return to original Thread
+    "  B    .              \n"// Should not return here
+    "  .align 4"
+    );
+}
+
+// SVC handler - restore stack
+//__attribute__((naked))
+void SVC_Handler(void)
+{
+    asm volatile(
+    "  MOVS   r0, #4\n"
+    "  MOV    r1, LR\n"
+    "  TST    r0, r1\n"
+    "  BEQ    stacking_used_MSP\n"
+    "  MRS    R0, PSP \n"// first parameter - stacking was using PSP
+    "  B      get_SVC_num\n"
+    "stacking_used_MSP:\n"
+    "  MRS    R0, MSP \n"// first parameter - stacking was using MSP
+    "get_SVC_num:\n"
+    "  LDR     R1, [R0, #24]  \n"// Get stacked PC
+    "  SUB    R1, R1, #2\n"
+    "  LDRB    R0, [R1, #0]   \n"// Get SVC parameter at stacked PC minus 2
+    "  CMP     R0, #0\n"
+    "  BEQ     svc_service_0\n"
+    "  BL      Unknown_SVC_Request\n"
+    "  BX      LR \n"// return
+    "svc_service_0:\n"
+    // SVC service 0
+    // Reentrant code finished, we can discard the current stack frame
+    // and restore the original stack frame.
+    "  ADD     SP, SP, #0x20\n"
+    "  POP     {R4, PC} \n"// Return
+    "  .align 4\n"
+    );
+}
+//--------------------------------------
+void Unknown_SVC_Request(unsigned int svc_num)
+{  //Display Error Message when SVC service is not known
+    printf("Error: Unknown SVC service request %d\n", svc_num);
+    while(1);
+}
+
 }
 
 #elif defined(__AVR__)
