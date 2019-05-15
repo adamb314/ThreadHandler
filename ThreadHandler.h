@@ -12,17 +12,18 @@
 
 #include "configuringMacros.h"
 
+template <typename returnType = void>
 class FunctionalWrapper
 {
 public:
     FunctionalWrapper(){};
     ~FunctionalWrapper(){};
 
-    virtual void operator()() = 0;
+    virtual returnType operator()() = 0;
 };
 
-template <typename F>
-class FunctionalWrapperTemplate : public FunctionalWrapper
+template <typename F, typename returnType = void>
+class FunctionalWrapperTemplate : public FunctionalWrapper<returnType>
 {
 public:
     FunctionalWrapperTemplate(F fun) :
@@ -32,14 +33,20 @@ public:
 
     ~FunctionalWrapperTemplate(){};
 
-    virtual void operator()()
+    virtual returnType operator()()
     {
-        fun();
+        return fun();
     }
 
 private:
     F fun;
 };
+
+template <typename returnType = void, typename F>
+FunctionalWrapper<returnType>* createFunctionalWrapper(F fun)
+{
+    return new FunctionalWrapperTemplate<F, returnType>(fun);
+}
 
 class Thread
 {

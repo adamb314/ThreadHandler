@@ -47,7 +47,7 @@ CodeBlocksThread::~CodeBlocksThread()
 
 void CodeBlocksThread::run()
 {
-    FunctionalWrapper& f = *reinterpret_cast<FunctionalWrapper*>(funList.get(nextFunBlockIndex));
+    FunctionalWrapper<>& f = *reinterpret_cast<FunctionalWrapper<>*>(funList.get(nextFunBlockIndex));
     f();
     ++nextFunBlockIndex;
     if (nextFunBlockIndex == funList.size())
