@@ -120,32 +120,54 @@ public:
 TestThread1* testThread1 = new TestThread1();
 TestThread2* testThread2 = new TestThread2();
 
-//This creates the third thread object directly without first defining
-//a thread type. This thread will run its lambda function
-//every 4s with an offset of 0s and priority 2.
-Thread* testThread3 = createThread(2, 4000000, 0,
-    []()
+CodeBlocksThread* testThread3 = nullptr;
+unsigned int test = 0;
+FunctionalWrapper<bool>* delayFunction = createFunctionalWrapper<bool>(
+    [&test]()
     {
+        test++;
+        if (test > 1000)
         {
-            ThreadInterruptBlocker block;
-            Serial.println("          ___");
-            Serial.println("          |T3|");
+            test = 0;
+            return true;
         }
-        for (int i = 0; i < 1; i++)
-        {
-            simulateWork();
-            ThreadInterruptBlocker block;
-            Serial.println("          | #|");
-        }
-        {
-            ThreadInterruptBlocker block;
-            Serial.println("           ^^");
-        }
+        return false;
     });
 
 void setup()
 {
     Serial.begin(115200);
+
+    //This creates the third thread object directly without first defining
+    //a thread type. This thread will run its lambda function
+    //every 4s with an offset of 0s and priority 2.
+    testThread3 = createThreadWithCodeBlocks(2, 4000000, 0,
+        []()
+        {
+            {
+                ThreadInterruptBlocker block;
+                Serial.println("          ___");
+                Serial.println("          |T3|");
+            }
+            for (int i = 0; i < 1; i++)
+            {
+                simulateWork();
+                ThreadInterruptBlocker block;
+                Serial.println("          | #|");
+            }
+            {
+                ThreadInterruptBlocker block;
+                Serial.println("           ^^");
+            }
+            //Thread::delayNextCodeBlock(500000);
+            Thread::delayNextCodeBlockUntil(delayFunction);
+        });
+
+    testThread3->addCodeBlock(
+        []()
+        {
+            Serial.println("          | #|secCodeBlock");
+        });
 
     //start executing threads
     ThreadHandler::getInstance()->enableThreadExecution();
