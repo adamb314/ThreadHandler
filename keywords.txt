@@ -1,10 +1,16 @@
 Thread	KEYWORD1
+CodeBlocksThread	KEYWORD1
+FunctionalWrapper	KEYWORD1
 ThreadInterruptBlocker	KEYWORD1
 ThreadHandler	KEYWORD1
 ThreadHandler::InterruptTimerInterface	KEYWORD1
 InterruptTimer	KEYWORD1
 
 createThread	KEYWORD2
+createThreadWithCodeBlocks	KEYWORD2
+createFunctionalWrapper	KEYWORD2
+delayNextCodeBlock	KEYWORD2
+delayNextCodeBlockUntil	KEYWORD2
 enableThreadExecution	KEYWORD2
 getCpuLoad	KEYWORD2
 lock	KEYWORD2
