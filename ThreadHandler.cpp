@@ -660,13 +660,13 @@ void ThreadHandler::interruptRun(InterruptTimerInterface* caller)
         return;
     }
 
-    static uint32_t startTime = micros();
+    static uint32_t startTime = millis();
     uint32_t loadStartTime = startTime;
     uint32_t endTime;
 
     if (priorityOfRunningThread == -128)
     {
-        loadStartTime = micros();
+        loadStartTime = millis();
     }
 
     bool threadExecuted = false;
@@ -711,7 +711,7 @@ void ThreadHandler::interruptRun(InterruptTimerInterface* caller)
         {
             if (priorityOfRunningThread == -128)
             {
-                endTime = micros();
+                endTime = millis();
                 int timeDiff = static_cast<int>(endTime - startTime);
                 int loadTimeDiff = static_cast<int>(endTime - loadStartTime);
                 startTime = endTime;
@@ -722,7 +722,7 @@ void ThreadHandler::interruptRun(InterruptTimerInterface* caller)
                     cpuLoadTime += loadTimeDiff;
                 }
 
-                if (totalTime > 1000)
+                if (totalTime > 2000)
                 {
                     totalTime = (totalTime >> 1);
                     cpuLoadTime = (cpuLoadTime >> 1);
