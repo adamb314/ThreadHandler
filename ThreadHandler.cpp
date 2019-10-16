@@ -86,12 +86,17 @@ ThreadInterruptBlocker::~ThreadInterruptBlocker()
 
 void ThreadInterruptBlocker::lock()
 {
-    if (ThreadHandler::getInstance()->interruptTimer == nullptr)
+    static InterruptTimer* interruptTimer = nullptr;
+    if (interruptTimer == nullptr)
     {
-        return;
+        interruptTimer = InterruptTimer::getInstance();
+        if (interruptTimer == nullptr)
+        {
+            return;
+        }
     }
 
-    ThreadHandler::getInstance()->interruptTimer->blockInterrupts();
+    InterruptTimer::blockInterrupts();
     if (!iAmLocked)
     {
         iAmLocked = true;
@@ -101,9 +106,14 @@ void ThreadInterruptBlocker::lock()
 
 void ThreadInterruptBlocker::unlock()
 {
-     if (ThreadHandler::getInstance()->interruptTimer == nullptr)
+    static InterruptTimer* interruptTimer = nullptr;
+    if (interruptTimer == nullptr)
     {
-        return;
+        interruptTimer = InterruptTimer::getInstance();
+        if (interruptTimer == nullptr)
+        {
+            return;
+        }
     }
 
     if (iAmLocked)
@@ -113,7 +123,7 @@ void ThreadInterruptBlocker::unlock()
     }
     if (blockerCount == 0)
     {
-        ThreadHandler::getInstance()->interruptTimer->unblockInterrupts();
+        InterruptTimer::unblockInterrupts();
     }
 }
 
@@ -625,7 +635,7 @@ void ThreadHandler::interruptRun(InterruptTimerInterface* caller)
     }
 
     ThreadInterruptBlocker blocker;
-    interruptTimer->enableNewInterrupt();
+    InterruptTimer::enableNewInterrupt();
 
     if (!threadExecutionEnabled)
     {
@@ -914,7 +924,7 @@ void InterruptTimer::unblockInterrupts()
 
 void interruptHandler() {
     interrupts();
-    InterruptTimer::getInstance()->interruptRun();
+    InterruptTimer::interruptRun();
 }
 
 #endif

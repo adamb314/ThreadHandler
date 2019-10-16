@@ -63,10 +63,10 @@ public:
     static InterruptTimer* getInstance();
     virtual ~InterruptTimer();
 
-    virtual void enableNewInterrupt();
+    static void enableNewInterrupt();
 
-    virtual void blockInterrupts();
-    virtual void unblockInterrupts();
+    static void blockInterrupts();
+    static void unblockInterrupts();
 
 private:
     InterruptTimer(uint16_t interruptTick);
@@ -94,10 +94,10 @@ public:
     static InterruptTimer* getInstance();
     virtual ~InterruptTimer();
 
-    virtual void enableNewInterrupt();
+    static void enableNewInterrupt();
 
-    virtual void blockInterrupts();
-    virtual void unblockInterrupts();
+    static void blockInterrupts();
+    static void unblockInterrupts();
 
 private:
     InterruptTimer(uint16_t interruptTick);

@@ -172,11 +172,6 @@ public:
 
         virtual ~InterruptTimerInterface(){};
 
-        virtual void enableNewInterrupt() = 0;
-
-        virtual void blockInterrupts() = 0;
-        virtual void unblockInterrupts() = 0;
-
     protected:
         void interruptRun();
     };
