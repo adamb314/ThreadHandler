@@ -245,6 +245,7 @@ protected:
     unsigned int cpuLoadTime;
     unsigned int totalTime;
     LinkedList<void*> threadHolders;
+    InternalThreadHolder* onlyThreadHolder;
 
     friend Thread;
     friend CodeBlocksThread;

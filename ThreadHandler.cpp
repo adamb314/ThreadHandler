@@ -380,6 +380,15 @@ ThreadHandler::~ThreadHandler()
 void ThreadHandler::add(int8_t priority, int32_t period, uint32_t startOffset, Thread* t)
 {
     threadHolders.add(new InternalThreadHolder(priority, period, startOffset, t));
+
+    if (threadHolders.size() == 1)
+    {
+        onlyThreadHolder = reinterpret_cast<InternalThreadHolder*>(threadHolders.get(0));
+    }
+    else
+    {
+        onlyThreadHolder = nullptr;
+    }
 }
 
 void ThreadHandler::remove(const Thread* t)
@@ -395,6 +404,15 @@ void ThreadHandler::remove(const Thread* t)
         {
             i++;
         }
+    }
+
+    if (threadHolders.size() == 1)
+    {
+        onlyThreadHolder = reinterpret_cast<InternalThreadHolder*>(threadHolders.get(0));
+    }
+    else
+    {
+        onlyThreadHolder = nullptr;
     }
 }
 
@@ -658,7 +676,21 @@ void ThreadHandler::interruptRun(InterruptTimerInterface* caller)
     while (true)
     {
 
-        InternalThreadHolder* threadToRunHolder = getNextThreadToRun(currentTimestamp);
+        InternalThreadHolder* threadToRunHolder = onlyThreadHolder;
+
+        if (threadToRunHolder != nullptr)
+        {
+            threadToRunHolder->updateCurrentTime(currentTimestamp);
+
+            if (!threadToRunHolder->pendingRun())
+            {
+                threadToRunHolder = nullptr;
+            }
+        }
+        else
+        {
+            threadToRunHolder = getNextThreadToRun(currentTimestamp);
+        }
 
         if (threadToRunHolder != nullptr)
         {
@@ -675,7 +707,7 @@ void ThreadHandler::interruptRun(InterruptTimerInterface* caller)
             currentInternalThreadHolder = temp2;
             priorityOfRunningThread = temp;
         }
-        else
+        if (threadToRunHolder == nullptr || onlyThreadHolder != nullptr)
         {
             if (priorityOfRunningThread == -128)
             {
