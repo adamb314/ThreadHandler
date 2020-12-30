@@ -956,7 +956,7 @@ void InterruptTimer::unblockInterrupts()
 
 void interruptHandler() {
     interrupts();
-    InterruptTimer::interruptRun();
+    InterruptTimer::getInstance()->interruptRun();
 }
 
 #endif
