@@ -7,7 +7,7 @@ class ThreadHandlerExecutionOrderOptimized : public ThreadHandler
 public:
     virtual ~ThreadHandlerExecutionOrderOptimized();
 
-    virtual void add(int8_t priority, int32_t period, uint32_t startOffset, Thread* t);
+    virtual void add(Thread* t);
 
     virtual void remove(const Thread* t);
 
@@ -16,36 +16,36 @@ public:
 private:
     ThreadHandlerExecutionOrderOptimized();
 
-    class ThreadHolderPriorityGroup
+    class ThreadPriorityGroup
     {
     public:
-        ThreadHolderPriorityGroup(InternalThreadHolder* t);
+        ThreadPriorityGroup(Thread* t);
 
-        void add(InternalThreadHolder* t);
+        void add(Thread* t);
 
-        void remove(const InternalThreadHolder* th);
+        void remove(const Thread* th);
 
         int8_t getPriority();
 
         void generateExecutionOrder();
 
-        InternalThreadHolder* handleUnoptimizableGroupGetNextToRun(uint32_t currentTimestamp);
+        Thread* handleUnoptimizableGroupGetNextToRun(uint32_t currentTimestamp);
 
-        InternalThreadHolder* getNextThreadToRun(uint32_t currentTimestamp);
+        Thread* getNextThreadToRun(uint32_t currentTimestamp);
 
     private:
         int8_t priority;
-        std::vector<InternalThreadHolder*> threadHolders;
-        std::vector<InternalThreadHolder*> executeRingBuffer;
-        std::vector<InternalThreadHolder*>::iterator itToNextThreadToRun;
+        std::vector<Thread*> threads;
+        std::vector<Thread*> executeRingBuffer;
+        std::vector<Thread*>::iterator itToNextThreadToRun;
     };
 
     void generateExecutionOrder();
 
-    virtual InternalThreadHolder* getNextThreadToRun(uint32_t currentTimestamp);
+    virtual Thread* getNextThreadToRun(uint32_t currentTimestamp);
 
     bool executionOrderGenerated;
-    std::vector<ThreadHolderPriorityGroup> priorityGroups;
+    std::vector<ThreadPriorityGroup> priorityGroups;
 
     friend ThreadHandler* createAndConfigureThreadHandler();
 };

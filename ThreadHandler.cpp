@@ -21,26 +21,6 @@ ThreadHandler* createAndConfigureThreadHandler()
     }
 }
 
-Thread::Thread(int8_t priority, int32_t period, uint32_t startOffset)
-{
-    ThreadHandler::getInstance()->add(priority, period, startOffset, this);
-}
-
-Thread::~Thread()
-{
-    ThreadHandler::getInstance()->remove(this);
-}
-
-void Thread::delayNextCodeBlock(int32_t delay)
-{
-    ThreadHandler::getInstance()->delayNextCodeBlock(delay);
-}
-
-void Thread::delayNextCodeBlockUntil(FunctionalWrapper<bool>* fun)
-{
-    ThreadHandler::getInstance()->delayNextCodeBlockUntil(fun);
-}
-
 CodeBlocksThread::~CodeBlocksThread()
 {
     while (funList.size() != 0)
@@ -127,23 +107,20 @@ void ThreadInterruptBlocker::unlock()
     }
 }
 
-ThreadHandler::InternalThreadHolder::InternalThreadHolder(int8_t priority, int32_t period, uint32_t startOffset, Thread* t) :
-    thread(t),
-    initiated(false),
-    runAtTimestamp(0),
-    timeUntillRun(0),
-    period(period),
-    startOffset(startOffset),
+Thread::Thread(int8_t priority, int32_t period, uint32_t startOffset) :
     priority(priority),
-    delayCodeBlockUntilFun(nullptr)
+    period(period),
+    startOffset(startOffset)
 {
+    ThreadHandler::getInstance()->add(this);
 }
 
-ThreadHandler::InternalThreadHolder::~InternalThreadHolder()
+Thread::~Thread()
 {
+    ThreadHandler::getInstance()->remove(this);
 }
 
-void ThreadHandler::InternalThreadHolder::updateCurrentTime(uint32_t currnetTime)
+void Thread::updateCurrentTime(uint32_t currnetTime)
 {
     if (!initiated)
     {
@@ -153,7 +130,7 @@ void ThreadHandler::InternalThreadHolder::updateCurrentTime(uint32_t currnetTime
     }
 
     if (delayCodeBlockUntilFun != nullptr &&
-        thread->splitIntoCodeBlocks())
+        splitIntoCodeBlocks())
     {
         runAtTimestamp = currnetTime;
         if ((*delayCodeBlockUntilFun)())
@@ -177,12 +154,12 @@ void ThreadHandler::InternalThreadHolder::updateCurrentTime(uint32_t currnetTime
     }
 }
 
-bool ThreadHandler::InternalThreadHolder::pendingRun()
+bool Thread::pendingRun()
 {
     return timeUntillRun <= 0;
 }
 
-bool ThreadHandler::InternalThreadHolder::higherPriorityThan(const InternalThreadHolder* other)
+bool Thread::higherPriorityThan(const Thread* other)
 {
     if (other == nullptr)
     {
@@ -192,7 +169,7 @@ bool ThreadHandler::InternalThreadHolder::higherPriorityThan(const InternalThrea
     return higherPriorityThan(*other);
 }
 
-bool ThreadHandler::InternalThreadHolder::higherPriorityThan(const InternalThreadHolder& other)
+bool Thread::higherPriorityThan(const Thread& other)
 {
     if (other.priority < priority)
     {
@@ -209,10 +186,10 @@ bool ThreadHandler::InternalThreadHolder::higherPriorityThan(const InternalThrea
     return false;
 }
 
-void ThreadHandler::InternalThreadHolder::runThread()
+void Thread::runThread()
 {
-    thread->run();
-    if (thread->firstCodeBlock())
+    run();
+    if (firstCodeBlock())
     {
         runAtTimestamp = startOffset + period;
         startOffset = runAtTimestamp;
@@ -220,44 +197,49 @@ void ThreadHandler::InternalThreadHolder::runThread()
 
 }
 
-bool ThreadHandler::InternalThreadHolder::isHolderFor(const Thread* t) const
-{
-    return thread == t;
-}
-
-int8_t ThreadHandler::InternalThreadHolder::getPriority() const
+int8_t Thread::getPriority() const
 {
     return priority;
 }
 
-void ThreadHandler::InternalThreadHolder::delayNextCodeBlock(int32_t delay)
+void Thread::delayNextCodeBlock(int32_t delay)
+{
+    ThreadHandler::getInstance()->delayNextCodeBlock(delay);
+}
+
+void Thread::delayNextCodeBlockUntil(FunctionalWrapper<bool>* fun)
+{
+    ThreadHandler::getInstance()->delayNextCodeBlockUntil(fun);
+}
+
+void Thread::internalDelayNextCodeBlock(int32_t delay)
 {
     runAtTimestamp = micros() + delay;
 }
 
-void ThreadHandler::InternalThreadHolder::delayNextCodeBlockUntil(FunctionalWrapper<bool>* fun)
+void Thread::internalDelayNextCodeBlockUntil(FunctionalWrapper<bool>* fun)
 {
     delayCodeBlockUntilFun = fun;
 }
 
-bool ThreadHandler::InternalThreadHolder::firstCodeBlock()
+bool Thread::firstCodeBlock()
 {
-    return thread->firstCodeBlock();
+    return true;
 }
 
-bool ThreadHandler::InternalThreadHolder::splitIntoCodeBlocks()
+bool Thread::splitIntoCodeBlocks()
 {
-    return thread->splitIntoCodeBlocks();
+    return false;
 }
 
 #if !defined(__AVR__)
-std::vector<ThreadHandler::InternalThreadHolder*> ThreadHandler::InternalThreadHolder::generateExecutionOrderVector(const std::vector<InternalThreadHolder*>& threadHolders)
+std::vector<Thread*> Thread::generateExecutionOrderVector(const std::vector<Thread*>& threads)
 {
-    std::vector<InternalThreadHolder*> executeRingBuffer;
+    std::vector<Thread*> executeRingBuffer;
 
-    if (threadHolders.size() == 1)
+    if (threads.size() == 1)
     {
-        executeRingBuffer.push_back(threadHolders[0]);
+        executeRingBuffer.push_back(threads[0]);
     }
     else
     {
@@ -265,7 +247,7 @@ std::vector<ThreadHandler::InternalThreadHolder*> ThreadHandler::InternalThreadH
 
         bool threadSplitIntoCodeBlocksExists = false;
 
-        for (auto& th : threadHolders)
+        for (auto& th : threads)
         {
             th->runAtTimestamp = th->startOffset;
 
@@ -283,8 +265,8 @@ std::vector<ThreadHandler::InternalThreadHolder*> ThreadHandler::InternalThreadH
         {
             while (true)
             {
-                InternalThreadHolder* nextToExecute = threadHolders[0];
-                for (auto& th : threadHolders)
+                Thread* nextToExecute = threads[0];
+                for (auto& th : threads)
                 {
                     if (nextToExecute->runAtTimestamp > th->runAtTimestamp)
                     {
@@ -312,7 +294,7 @@ std::vector<ThreadHandler::InternalThreadHolder*> ThreadHandler::InternalThreadH
                 uint32_t endPatternTimeOffset = executeTimeRingBuffer[endPatternIndex];
 
                 bool patternMach = true;
-                for (auto& th : threadHolders)
+                for (auto& th : threads)
                 {
                     auto itInStartPattern = std::find(startPatternIterator, executeRingBuffer.end(), th);
                     auto itInEndPattern = std::find(endPatternIterator, executeRingBuffer.end(), th);
@@ -340,7 +322,7 @@ std::vector<ThreadHandler::InternalThreadHolder*> ThreadHandler::InternalThreadH
                     executeRingBuffer.erase(endPatternIterator, executeRingBuffer.end());
                     break;
                 }
-                else if (executeRingBuffer.size() > 5 * threadHolders.size())
+                else if (executeRingBuffer.size() > 5 * threads.size())
                 {
                     executeRingBuffer.clear();
                     break;
@@ -349,7 +331,7 @@ std::vector<ThreadHandler::InternalThreadHolder*> ThreadHandler::InternalThreadH
         }
     }
 
-    for (auto& th : threadHolders)
+    for (auto& th : threads)
     {
         th->initiated = false;
     }
@@ -363,13 +345,7 @@ ThreadHandler* ThreadHandler::getInstance()
     return createAndConfigureThreadHandler();
 }
 
-ThreadHandler::ThreadHandler() :
-    interruptTimer(nullptr),
-    threadExecutionEnabled(false),
-    currentInternalThreadHolder(nullptr),
-    priorityOfRunningThread(-128),
-    cpuLoadTime(0),
-    totalTime(0)
+ThreadHandler::ThreadHandler()
 {
 }
 
@@ -377,42 +353,39 @@ ThreadHandler::~ThreadHandler()
 {
 }
 
-void ThreadHandler::add(int8_t priority, int32_t period, uint32_t startOffset, Thread* t)
+void ThreadHandler::add(Thread* t)
 {
-    threadHolders.add(new InternalThreadHolder(priority, period, startOffset, t));
-
-    if (threadHolders.size() == 1)
+    if (firstThread == nullptr)
     {
-        onlyThreadHolder = reinterpret_cast<InternalThreadHolder*>(threadHolders.get(0));
+        firstThread = t;
+        lastThread = t;
     }
     else
     {
-        onlyThreadHolder = nullptr;
+        t->previous = lastThread;
+        lastThread->next = t;
+        lastThread = t;
     }
 }
 
 void ThreadHandler::remove(const Thread* t)
 {
-    for (int i = 0; i < threadHolders.size();)
+    if (firstThread == t)
     {
-        if ((reinterpret_cast<InternalThreadHolder*>(threadHolders.get(i)))->isHolderFor(t))
-        {
-            void* th = threadHolders.remove(i);
-            delete th;
-        }
-        else
-        {
-            i++;
-        }
-    }
+        firstThread = t->next;
 
-    if (threadHolders.size() == 1)
+        t->next->previous = t->previous;
+    }
+    else if (lastThread == t)
     {
-        onlyThreadHolder = reinterpret_cast<InternalThreadHolder*>(threadHolders.get(0));
+        lastThread = t->previous;
+
+        t->previous->next = t->next;
     }
     else
     {
-        onlyThreadHolder = nullptr;
+        t->previous->next = t->next;
+        t->next->previous = t->previous;
     }
 }
 
@@ -420,13 +393,14 @@ void ThreadHandler::updated(const Thread* t)
 {
 }
 
-ThreadHandler::InternalThreadHolder* ThreadHandler::getNextThreadToRun(uint32_t currentTimestamp)
+Thread* ThreadHandler::getNextThreadToRun(uint32_t currentTimestamp)
 {
-    InternalThreadHolder* threadToRunHolder = nullptr;
+    Thread* threadToRun = nullptr;
 
-    for (int i = 0; i < threadHolders.size(); i++)
+    for (Thread* it = firstThread; it != nullptr; it = it->next)
     {
-        InternalThreadHolder& th = *(reinterpret_cast<InternalThreadHolder*>(threadHolders.get(i)));
+        Thread& th = *it;
+
         if (th.getPriority() <= priorityOfRunningThread)
         {
             continue;
@@ -436,14 +410,14 @@ ThreadHandler::InternalThreadHolder* ThreadHandler::getNextThreadToRun(uint32_t 
 
         if (th.pendingRun())
         {
-            if (th.higherPriorityThan(threadToRunHolder))
+            if (th.higherPriorityThan(threadToRun))
             {
-                threadToRunHolder = &th;
+                threadToRun = &th;
             }
         }
     }
 
-    return threadToRunHolder;
+    return threadToRun;
 }
 
 void ThreadHandler::enableThreadExecution(bool enable)
@@ -468,65 +442,65 @@ uint16_t ThreadHandler::getCpuLoad()
 
 void ThreadHandler::delayNextCodeBlock(int32_t delay)
 {
-    currentInternalThreadHolder->delayNextCodeBlock(delay);
+    currentThread->internalDelayNextCodeBlock(delay);
 }
 
 void ThreadHandler::delayNextCodeBlockUntil(FunctionalWrapper<bool>* fun)
 {
-    currentInternalThreadHolder->delayNextCodeBlockUntil(fun);
+    currentThread->internalDelayNextCodeBlockUntil(fun);
 }
 
 #if !defined(__AVR__)
-ThreadHandlerExecutionOrderOptimized::ThreadHolderPriorityGroup::ThreadHolderPriorityGroup(InternalThreadHolder* t) :
+ThreadHandlerExecutionOrderOptimized::ThreadPriorityGroup::ThreadPriorityGroup(Thread* t) :
     priority(t->getPriority())
 {
-    threadHolders.push_back(t);
+    threads.push_back(t);
 }
 
-void ThreadHandlerExecutionOrderOptimized::ThreadHolderPriorityGroup::add(InternalThreadHolder* t)
+void ThreadHandlerExecutionOrderOptimized::ThreadPriorityGroup::add(Thread* t)
 {
-    threadHolders.push_back(t);
+    threads.push_back(t);
 }
 
-void ThreadHandlerExecutionOrderOptimized::ThreadHolderPriorityGroup::remove(const InternalThreadHolder* th)
+void ThreadHandlerExecutionOrderOptimized::ThreadPriorityGroup::remove(const Thread* th)
 {
-    threadHolders.erase(std::remove(threadHolders.begin(), threadHolders.end(), th),
-        threadHolders.end());
+    threads.erase(std::remove(threads.begin(), threads.end(), th),
+        threads.end());
 }
 
-int8_t ThreadHandlerExecutionOrderOptimized::ThreadHolderPriorityGroup::getPriority()
+int8_t ThreadHandlerExecutionOrderOptimized::ThreadPriorityGroup::getPriority()
 {
     return priority;
 }
 
-void ThreadHandlerExecutionOrderOptimized::ThreadHolderPriorityGroup::generateExecutionOrder()
+void ThreadHandlerExecutionOrderOptimized::ThreadPriorityGroup::generateExecutionOrder()
 {
-    executeRingBuffer = InternalThreadHolder::generateExecutionOrderVector(threadHolders);
+    executeRingBuffer = Thread::generateExecutionOrderVector(threads);
 
     itToNextThreadToRun = executeRingBuffer.begin();
 }
 
-ThreadHandler::InternalThreadHolder* ThreadHandlerExecutionOrderOptimized::ThreadHolderPriorityGroup::handleUnoptimizableGroupGetNextToRun(uint32_t currentTimestamp)
+Thread* ThreadHandlerExecutionOrderOptimized::ThreadPriorityGroup::handleUnoptimizableGroupGetNextToRun(uint32_t currentTimestamp)
 {
-    InternalThreadHolder* threadToRunHolder = nullptr;
+    Thread* threadToRun = nullptr;
 
-    for (auto th : threadHolders)
+    for (auto th : threads)
     {
         th->updateCurrentTime(currentTimestamp);
 
         if (th->pendingRun())
         {
-            if (th->higherPriorityThan(threadToRunHolder))
+            if (th->higherPriorityThan(threadToRun))
             {
-                threadToRunHolder = th;
+                threadToRun = th;
             }
         }
     }
 
-    return threadToRunHolder;
+    return threadToRun;
 }
 
-ThreadHandler::InternalThreadHolder* ThreadHandlerExecutionOrderOptimized::ThreadHolderPriorityGroup::getNextThreadToRun(uint32_t currentTimestamp)
+Thread* ThreadHandlerExecutionOrderOptimized::ThreadPriorityGroup::getNextThreadToRun(uint32_t currentTimestamp)
 {
     if (executeRingBuffer.size() == 0)
     {
@@ -557,10 +531,10 @@ ThreadHandlerExecutionOrderOptimized::ThreadHandlerExecutionOrderOptimized() :
 }
 
 
-void ThreadHandlerExecutionOrderOptimized::add(int8_t priority, int32_t period, uint32_t startOffset, Thread* t)
+void ThreadHandlerExecutionOrderOptimized::add(Thread* t)
 {
     executionOrderGenerated = false;
-    ThreadHandler::add(priority, period, startOffset, t);
+    ThreadHandler::add(t);
 }
 
 void ThreadHandlerExecutionOrderOptimized::remove(const Thread* t)
@@ -583,9 +557,9 @@ void ThreadHandlerExecutionOrderOptimized::generateExecutionOrder()
 {
     priorityGroups.clear();
 
-    for (int i = 0; i < threadHolders.size(); i++)
+    for (int i = 0; i < threads.size(); i++)
     {
-        InternalThreadHolder& th = *(reinterpret_cast<InternalThreadHolder*>(threadHolders.get(i)));
+        Thread& th = *(reinterpret_cast<Thread*>(threads.get(i)));
 
         auto it = priorityGroups.begin();
         for (; it != priorityGroups.end(); ++it)
@@ -597,13 +571,13 @@ void ThreadHandlerExecutionOrderOptimized::generateExecutionOrder()
             }
             else if (th.getPriority() > it->getPriority())
             {
-                priorityGroups.insert(it, ThreadHolderPriorityGroup(&th));
+                priorityGroups.insert(it, ThreadPriorityGroup(&th));
                 break;
             }
         }
         if (it == priorityGroups.end())
         {
-            priorityGroups.insert(it, ThreadHolderPriorityGroup(&th));
+            priorityGroups.insert(it, ThreadPriorityGroup(&th));
         }
     }
 
@@ -613,7 +587,7 @@ void ThreadHandlerExecutionOrderOptimized::generateExecutionOrder()
     }
 }
 
-ThreadHandler::InternalThreadHolder* ThreadHandlerExecutionOrderOptimized::getNextThreadToRun(uint32_t currentTimestamp)
+Thread* ThreadHandlerExecutionOrderOptimized::getNextThreadToRun(uint32_t currentTimestamp)
 {
     if (!executionOrderGenerated)
     {
@@ -628,7 +602,7 @@ ThreadHandler::InternalThreadHolder* ThreadHandlerExecutionOrderOptimized::getNe
             return nullptr;
         }
 
-        InternalThreadHolder* th = pg.getNextThreadToRun(currentTimestamp);
+        Thread* th = pg.getNextThreadToRun(currentTimestamp);
 
         if (th != nullptr)
         {
@@ -675,39 +649,24 @@ void ThreadHandler::interruptRun(InterruptTimerInterface* caller)
 
     while (true)
     {
+        Thread* threadToRun = getNextThreadToRun(currentTimestamp);
 
-        InternalThreadHolder* threadToRunHolder = onlyThreadHolder;
-
-        if (threadToRunHolder != nullptr)
-        {
-            threadToRunHolder->updateCurrentTime(currentTimestamp);
-
-            if (!threadToRunHolder->pendingRun())
-            {
-                threadToRunHolder = nullptr;
-            }
-        }
-        else
-        {
-            threadToRunHolder = getNextThreadToRun(currentTimestamp);
-        }
-
-        if (threadToRunHolder != nullptr)
+        if (threadToRun != nullptr)
         {
             threadExecuted = true;
             int8_t temp = priorityOfRunningThread;
-            auto temp2 = currentInternalThreadHolder;
-            priorityOfRunningThread = threadToRunHolder->getPriority();
-            currentInternalThreadHolder = threadToRunHolder;
+            auto temp2 = currentThread;
+            priorityOfRunningThread = threadToRun->getPriority();
+            currentThread = threadToRun;
             blocker.unlock();
 
-            threadToRunHolder->runThread();
+            threadToRun->runThread();
 
             blocker.lock();
-            currentInternalThreadHolder = temp2;
+            currentThread = temp2;
             priorityOfRunningThread = temp;
         }
-        if (threadToRunHolder == nullptr || onlyThreadHolder != nullptr)
+        if (threadToRun == nullptr)
         {
             if (priorityOfRunningThread == -128)
             {
