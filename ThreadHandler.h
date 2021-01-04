@@ -64,6 +64,8 @@ public:
 
     static void delayNextCodeBlockUntil(FunctionalWrapper<bool>* fun);
 
+    static uint32_t getTimingError();
+
 private:
     Thread(const Thread&) = delete;
     Thread& operator=(const Thread&) = delete;
@@ -76,6 +78,7 @@ private:
 
     virtual void internalDelayNextCodeBlockUntil(FunctionalWrapper<bool>* fun);
 
+    uint32_t internalGetTimingError();
 
     void initiate(uint32_t currnetTime);
 
@@ -216,6 +219,8 @@ public:
     void delayNextCodeBlock(int32_t delay);
 
     void delayNextCodeBlockUntil(FunctionalWrapper<bool>* fun);
+
+    uint32_t getTimingError();
 
     class InterruptTimerInterface
     {

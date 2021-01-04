@@ -237,12 +237,22 @@ void Thread::delayNextCodeBlockUntil(FunctionalWrapper<bool>* fun)
     ThreadHandler::getInstance()->delayNextCodeBlockUntil(fun);
 }
 
+uint32_t Thread::getTimingError()
+{
+    return ThreadHandler::getInstance()->getTimingError();
+}
+
 void Thread::internalDelayNextCodeBlock(int32_t delay)
 {
 }
 
 void Thread::internalDelayNextCodeBlockUntil(FunctionalWrapper<bool>* fun)
 {
+}
+
+uint32_t Thread::internalGetTimingError()
+{
+    return micros() - runAtTimestamp;
 }
 
 bool Thread::firstCodeBlock()
@@ -497,6 +507,11 @@ void ThreadHandler::delayNextCodeBlock(int32_t delay)
 void ThreadHandler::delayNextCodeBlockUntil(FunctionalWrapper<bool>* fun)
 {
     currentThread->internalDelayNextCodeBlockUntil(fun);
+}
+
+uint32_t ThreadHandler::getTimingError()
+{
+    return currentThread->internalGetTimingError();
 }
 
 #if !defined(__AVR__)
