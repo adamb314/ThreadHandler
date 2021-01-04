@@ -258,7 +258,6 @@ protected:
     unsigned int cpuLoadTime{0};
     unsigned int totalTime{0};
     Thread* firstThread{nullptr};
-    Thread* lastThread{nullptr};
 
     friend Thread;
     friend CodeBlocksThread;

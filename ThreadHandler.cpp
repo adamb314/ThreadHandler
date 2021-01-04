@@ -435,16 +435,13 @@ void ThreadHandler::remove(const Thread* t)
 
         t->next->previous = t->previous;
     }
-    else if (lastThread == t)
-    {
-        lastThread = t->previous;
-
-        t->previous->next = t->next;
-    }
     else
     {
         t->previous->next = t->next;
-        t->next->previous = t->previous;
+        if (t->next != nullptr)
+        {
+            t->next->previous = t->previous;
+        }
     }
 }
 
