@@ -488,11 +488,11 @@ void ThreadHandler::enableThreadExecution(bool enable)
     threadExecutionEnabled = enable;
 }
 
-uint16_t ThreadHandler::getCpuLoad()
+uint8_t ThreadHandler::getCpuLoad()
 {
     ThreadInterruptBlocker blocker;
 
-    uint16_t out = static_cast<uint16_t>((cpuLoadTime * 1000) / totalTime);
+    uint8_t out = static_cast<uint8_t>((cpuLoadTime * 10ul) / (totalTime / 10));
     return out;
 }
 
@@ -695,18 +695,16 @@ void ThreadHandler::interruptRun(InterruptTimerInterface* caller)
         return;
     }
 
-    static uint32_t startTime = millis();
-    uint32_t loadStartTime = startTime;
-    uint32_t endTime;
+    bool threadExecuted = false;
+    uint32_t currentTimestamp = micros();
+
+    static uint32_t startTime = micros();
+    static uint32_t loadStartTime = startTime;
 
     if (priorityOfRunningThread == -128)
     {
-        loadStartTime = millis();
+        loadStartTime = currentTimestamp;
     }
-
-    bool threadExecuted = false;
-    
-    uint32_t currentTimestamp = micros();
 
     while (true)
     {
@@ -731,22 +729,13 @@ void ThreadHandler::interruptRun(InterruptTimerInterface* caller)
         {
             if (priorityOfRunningThread == -128)
             {
-                endTime = millis();
-                int timeDiff = static_cast<int>(endTime - startTime);
-                int loadTimeDiff = static_cast<int>(endTime - loadStartTime);
+                uint32_t endTime = micros();
+                int32_t timeDiff = static_cast<int32_t>(endTime - startTime);
+                int32_t loadTimeDiff = static_cast<int32_t>(endTime - loadStartTime);
                 startTime = endTime;
 
-                totalTime += timeDiff;
-                if (threadExecuted)
-                {
-                    cpuLoadTime += loadTimeDiff;
-                }
-
-                if (totalTime > 2000)
-                {
-                    totalTime = (totalTime >> 1);
-                    cpuLoadTime = (cpuLoadTime >> 1);
-                }
+                totalTime = (totalTime * 15 + timeDiff) / 16;
+                cpuLoadTime = (cpuLoadTime * 15 + loadTimeDiff) / 16;
             }
             break;
         }

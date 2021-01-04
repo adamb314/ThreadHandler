@@ -214,7 +214,7 @@ public:
 
     void enableThreadExecution(bool enable = true);
 
-    uint16_t getCpuLoad();
+    uint8_t getCpuLoad();
 
     void delayNextCodeBlock(int32_t delay);
 
@@ -256,7 +256,7 @@ protected:
     Thread* currentThread{nullptr};
     int8_t priorityOfRunningThread{-128};
     unsigned int cpuLoadTime{0};
-    unsigned int totalTime{0};
+    unsigned int totalTime{1};
     Thread* firstThread{nullptr};
 
     friend Thread;
