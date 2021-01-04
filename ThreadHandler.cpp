@@ -449,31 +449,38 @@ void ThreadHandler::updated(const Thread* t)
 {
 }
 
-Thread* ThreadHandler::getNextThreadToRun(uint32_t currentTimestamp)
+Thread* ThreadHandler::getHeadOfThreadsToRun(uint32_t currentTimestamp)
 {
-    Thread* threadToRun = nullptr;
+    Thread* headThreadToRun = nullptr;
+    Thread* lastThreadToRun = nullptr;
 
     for (Thread* it = firstThread; it != nullptr; it = it->next)
     {
-        Thread& th = *it;
-
-        if (th.getPriority() <= priorityOfRunningThread)
+        if (it->getPriority() <= priorityOfRunningThread)
         {
             continue;
         }
 
-        th.updateCurrentTime(currentTimestamp);
+        it->updateCurrentTime(currentTimestamp);
 
-        if (th.pendingRun())
+        if (it->pendingRun())
         {
-            if (th.higherPriorityThan(threadToRun))
+            it->nextPendingRun = nullptr;
+
+            if (headThreadToRun == nullptr)
             {
-                threadToRun = &th;
+                headThreadToRun = it;
+                lastThreadToRun = it;
+            }
+            else
+            {
+                lastThreadToRun->nextPendingRun = it;
+                lastThreadToRun = it;
             }
         }
     }
 
-    return threadToRun;
+    return headThreadToRun;
 }
 
 void ThreadHandler::enableThreadExecution(bool enable)
@@ -675,6 +682,44 @@ Thread* ThreadHandlerExecutionOrderOptimized::getNextThreadToRun(uint32_t curren
 }
 #endif
 
+Thread* ThreadHandler::getNextThreadToRunAndRemoveFrom(Thread*& head)
+{
+    Thread* highestPriorityParrent = nullptr;
+    Thread* highestPriority = nullptr;
+
+    Thread* prevIt = nullptr;
+    uint8_t maxPriority = head->getPriority();
+
+    for (Thread* it = head; it != nullptr; it = it->nextPendingRun)
+    {
+        if (it->getPriority() < maxPriority)
+        {
+            break;
+        }
+
+        if (it->higherPriorityThan(highestPriority))
+        {
+            highestPriorityParrent = prevIt;
+            highestPriority = it;
+        }
+
+        prevIt = it;
+    }
+
+    if (highestPriorityParrent == nullptr)
+    {
+        head = highestPriority->nextPendingRun;
+        highestPriority->nextPendingRun = nullptr;
+    }
+    else
+    {
+        highestPriorityParrent->nextPendingRun = highestPriority->nextPendingRun;
+        highestPriority->nextPendingRun = nullptr;
+    }
+
+    return highestPriority;
+}
+
 void ThreadHandler::interruptRun(InterruptTimerInterface* caller)
 {
     //check so that the InterruptTimerInterface calling
@@ -706,9 +751,11 @@ void ThreadHandler::interruptRun(InterruptTimerInterface* caller)
         loadStartTime = currentTimestamp;
     }
 
+    Thread* headThreadToRun = getHeadOfThreadsToRun(currentTimestamp);
+
     while (true)
     {
-        Thread* threadToRun = getNextThreadToRun(currentTimestamp);
+        Thread* threadToRun = getNextThreadToRunAndRemoveFrom(headThreadToRun);
 
         if (threadToRun != nullptr)
         {

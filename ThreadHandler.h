@@ -107,6 +107,7 @@ private:
 
     Thread* previous{nullptr};
     Thread* next{nullptr};
+    Thread* nextPendingRun{nullptr};
 
     friend class ThreadHandler;
     friend class CodeBlocksThread;
@@ -246,7 +247,9 @@ protected:
 
     virtual void updated(const Thread* t);
 
-    virtual Thread* getNextThreadToRun(uint32_t currentTimestamp);
+    Thread* getNextThreadToRunAndRemoveFrom(Thread*& head);
+
+    virtual Thread* getHeadOfThreadsToRun(uint32_t currentTimestamp);
 
     void interruptRun(InterruptTimerInterface* caller);
 
