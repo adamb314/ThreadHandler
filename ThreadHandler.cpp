@@ -23,32 +23,35 @@ ThreadHandler* createAndConfigureThreadHandler()
 
 CodeBlocksThread::~CodeBlocksThread()
 {
-    while (funList.size() != 0)
+    for (Node* it = funListStart; it != nullptr;)
     {
-        delete funList.get(0);
-        funList.remove(0);
+        Node* temp = it;
+        it = temp->next;
+
+        delete temp->fun;
+        delete temp;
     }
 }
 
 void CodeBlocksThread::run()
 {
-    FunctionalWrapper<>& f = *reinterpret_cast<FunctionalWrapper<>*>(funList.get(nextFunBlockIndex));
+    FunctionalWrapper<>& f = *(nextFunBlockNode->fun);
     f();
-    ++nextFunBlockIndex;
-    if (nextFunBlockIndex == funList.size())
+    nextFunBlockNode = nextFunBlockNode->next;
+    if (nextFunBlockNode == nullptr)
     {
-        nextFunBlockIndex = 0;
+        nextFunBlockNode = funListStart;
     }
 }
 
 bool CodeBlocksThread::firstCodeBlock()
 {
-    return nextFunBlockIndex == 0;
+    return nextFunBlockNode == funListStart;
 }
 
 bool CodeBlocksThread::splitIntoCodeBlocks()
 {
-    return funList.size() > 1;
+    return funListStart != funListLast;
 }
 
 void CodeBlocksThread::internalDelayNextCodeBlock(int32_t delay)
@@ -378,13 +381,39 @@ void ThreadHandler::add(Thread* t)
     if (firstThread == nullptr)
     {
         firstThread = t;
-        lastThread = t;
     }
     else
     {
-        t->previous = lastThread;
-        lastThread->next = t;
-        lastThread = t;
+        Thread* insertPoint = nullptr;
+        for (Thread* it = firstThread; it != nullptr; it = it->next)
+        {
+            if (t->getPriority() > it->getPriority())
+            {
+                break;
+            }
+            insertPoint = it;
+        }
+
+        if (insertPoint != nullptr)
+        {
+            t->previous = insertPoint;
+            t->next = insertPoint->next;
+
+            insertPoint->next = t;
+            if (t->next != nullptr)
+            {
+                t->next->previous = t;
+            }
+        }
+        else
+        {
+            t->previous = nullptr;
+            t->next = firstThread;
+
+            t->next->previous = t;
+
+            firstThread = t;
+        }
     }
 }
 

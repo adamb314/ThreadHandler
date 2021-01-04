@@ -2,7 +2,6 @@
 #define THREAD_HANDLER_H
 
 #include <Arduino.h>
-#include <LinkedList.h>
 
 #if !defined(__AVR__)
 #undef min
@@ -164,10 +163,20 @@ private:
 
     virtual void internalDelayNextCodeBlockUntil(FunctionalWrapper<bool>* fun) override;
 
-    FunctionalWrapper<bool>* delayCodeBlockUntilFun{nullptr};
+    class Node
+    {
+    public:
+        Node(FunctionalWrapper<>* fun) : fun(fun) {};
 
-    size_t nextFunBlockIndex;
-    LinkedList<void*> funList;
+        Node* next{nullptr};
+
+        FunctionalWrapper<>* fun{nullptr};
+    };
+
+    Node* funListStart{nullptr};
+    Node* funListLast{nullptr};
+    Node* nextFunBlockNode{nullptr};
+    FunctionalWrapper<bool>* delayCodeBlockUntilFun{nullptr};
 };
 
 template <typename F>
@@ -257,13 +266,24 @@ CodeBlocksThread::CodeBlocksThread(int8_t priority, int32_t period, uint32_t sta
     Thread(priority, period, startOffset)
 {
     addCodeBlock<F>(fun);
-    nextFunBlockIndex = 0;
+    nextFunBlockNode = funListStart;
 }
 
 template <typename F>
 void CodeBlocksThread::addCodeBlock(F fun)
 {
-    funList.add(new FunctionalWrapperTemplate<F>(fun));
+    Node* newNode = new Node(new FunctionalWrapperTemplate<F>(fun));
+
+    if (funListLast != nullptr)
+    {
+        funListLast->next = newNode;
+        funListLast = newNode;
+    }
+    else
+    {
+        funListStart = newNode;
+        funListLast = newNode;
+    }
     ThreadHandler::getInstance()->updated(this);
 }
 
