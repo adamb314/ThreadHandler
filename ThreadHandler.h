@@ -3,12 +3,6 @@
 
 #include <Arduino.h>
 
-#if !defined(__AVR__)
-#undef min
-#undef max
-#include <vector>
-#endif
-
 #include "configuringMacros.h"
 
 template <typename returnType = void>
@@ -92,10 +86,6 @@ private:
     bool higherPriorityThan(const Thread& other);
 
     void runThread();
-
-#if !defined(__AVR__)
-    static std::vector<Thread*> generateExecutionOrderVector(const std::vector<Thread*>& threads);
-#endif
 
 private:
     bool initiated{false};

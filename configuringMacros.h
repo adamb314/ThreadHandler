@@ -2,21 +2,9 @@
 ThreadHandler::InterruptTimerInterface* getInterruptTimerInstance() \
 { \
     return InterruptTimer; \
-}\
-bool executionOrderOptimizedThreadHandler() \
-{ \
-    return false; \
 }
 
-#define THREAD_HANDLER_WITH_EXECUTION_ORDER_OPTIMIZED(InterruptTimer) \
-ThreadHandler::InterruptTimerInterface* getInterruptTimerInstance() \
-{ \
-    return InterruptTimer; \
-}\
-bool executionOrderOptimizedThreadHandler() \
-{ \
-    return true; \
-}
+#define THREAD_HANDLER_WITH_EXECUTION_ORDER_OPTIMIZED(InterruptTimer) THREAD_HANDLER(InterruptTimer)
 
 #define SET_THREAD_HANDLER_TICK(InterruptTimerTick) \
 uint32_t getInterruptTimerTick() \
