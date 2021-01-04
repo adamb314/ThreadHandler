@@ -152,17 +152,17 @@ public:
     void addCodeBlock(F fun);
 
 private:
-    virtual void run();
+    virtual void run() override;
 
-    virtual void updateCurrentTime(uint32_t currnetTime);
+    virtual void updateCurrentTime(uint32_t currnetTime) override;
 
-    virtual bool firstCodeBlock();
+    virtual bool firstCodeBlock() override;
 
-    virtual bool splitIntoCodeBlocks();
+    virtual bool splitIntoCodeBlocks() override;
 
-    virtual void internalDelayNextCodeBlock(int32_t delay);
+    virtual void internalDelayNextCodeBlock(int32_t delay) override;
 
-    virtual void internalDelayNextCodeBlockUntil(FunctionalWrapper<bool>* fun);
+    virtual void internalDelayNextCodeBlockUntil(FunctionalWrapper<bool>* fun) override;
 
     FunctionalWrapper<bool>* delayCodeBlockUntilFun{nullptr};
 
