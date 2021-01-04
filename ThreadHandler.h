@@ -48,6 +48,7 @@ FunctionalWrapper<returnType>* createFunctionalWrapper(F fun)
     return new FunctionalWrapperTemplate<F, returnType>(fun);
 }
 
+class CodeBlocksThread;
 class ThreadHandler;
 class ThreadHandlerExecutionOrderOptimized;
 
@@ -60,10 +61,6 @@ public:
 
     virtual void run() = 0;
 
-    virtual bool firstCodeBlock();
-
-    virtual bool splitIntoCodeBlocks();
-
     static void delayNextCodeBlock(int32_t delay);
 
     static void delayNextCodeBlockUntil(FunctionalWrapper<bool>* fun);
@@ -72,11 +69,18 @@ private:
     Thread(const Thread&) = delete;
     Thread& operator=(const Thread&) = delete;
 
-    void internalDelayNextCodeBlock(int32_t delay);
+    virtual bool splitIntoCodeBlocks();
 
-    void internalDelayNextCodeBlockUntil(FunctionalWrapper<bool>* fun);
+    virtual void internalDelayNextCodeBlock(int32_t delay);
+    virtual bool firstCodeBlock();
 
-    void updateCurrentTime(uint32_t time);
+
+    virtual void internalDelayNextCodeBlockUntil(FunctionalWrapper<bool>* fun);
+
+
+    void initiate(uint32_t currnetTime);
+
+    virtual void updateCurrentTime(uint32_t time);
 
     bool pendingRun();
 
@@ -98,12 +102,12 @@ private:
     int32_t timeUntillRun{0};
     int32_t period;
     uint32_t startOffset;
-    FunctionalWrapper<bool>* delayCodeBlockUntilFun{nullptr};
 
     Thread* previous{nullptr};
     Thread* next{nullptr};
 
     friend class ThreadHandler;
+    friend class CodeBlocksThread;
     friend class ThreadHandlerExecutionOrderOptimized;
 };
 
@@ -147,13 +151,21 @@ public:
     template <typename F>
     void addCodeBlock(F fun);
 
+private:
     virtual void run();
+
+    virtual void updateCurrentTime(uint32_t currnetTime);
 
     virtual bool firstCodeBlock();
 
     virtual bool splitIntoCodeBlocks();
 
-private:
+    virtual void internalDelayNextCodeBlock(int32_t delay);
+
+    virtual void internalDelayNextCodeBlockUntil(FunctionalWrapper<bool>* fun);
+
+    FunctionalWrapper<bool>* delayCodeBlockUntilFun{nullptr};
+
     size_t nextFunBlockIndex;
     LinkedList<void*> funList;
 };

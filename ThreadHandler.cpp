@@ -51,6 +51,40 @@ bool CodeBlocksThread::splitIntoCodeBlocks()
     return funList.size() > 1;
 }
 
+void CodeBlocksThread::internalDelayNextCodeBlock(int32_t delay)
+{
+    runAtTimestamp = micros() + delay;
+}
+
+void CodeBlocksThread::internalDelayNextCodeBlockUntil(FunctionalWrapper<bool>* fun)
+{
+    delayCodeBlockUntilFun = fun;
+}
+
+void CodeBlocksThread::updateCurrentTime(uint32_t currentTime)
+{
+    Thread::initiate(currentTime);
+
+    if (delayCodeBlockUntilFun != nullptr &&
+        splitIntoCodeBlocks())
+    {
+        runAtTimestamp = currentTime;
+        if ((*delayCodeBlockUntilFun)())
+        {
+            delayCodeBlockUntilFun = nullptr;
+            timeUntillRun = 0;
+        }
+        else
+        {
+            runAtTimestamp += 1;
+            timeUntillRun = 1;
+        }
+        return;
+    }
+
+    Thread::updateCurrentTime(currentTime);
+}
+
 unsigned int ThreadInterruptBlocker::blockerCount = 0;
 
 ThreadInterruptBlocker::ThreadInterruptBlocker() :
@@ -120,33 +154,21 @@ Thread::~Thread()
     ThreadHandler::getInstance()->remove(this);
 }
 
-void Thread::updateCurrentTime(uint32_t currnetTime)
+void Thread::initiate(uint32_t currentTime)
 {
     if (!initiated)
     {
-        runAtTimestamp = currnetTime + startOffset;
+        runAtTimestamp = currentTime + startOffset;
         startOffset = runAtTimestamp;
         initiated = true;
     }
+}
 
-    if (delayCodeBlockUntilFun != nullptr &&
-        splitIntoCodeBlocks())
-    {
-        runAtTimestamp = currnetTime;
-        if ((*delayCodeBlockUntilFun)())
-        {
-            delayCodeBlockUntilFun = nullptr;
-            timeUntillRun = 0;
-        }
-        else
-        {
-            runAtTimestamp += 1;
-            timeUntillRun = 1;
-        }
-        return;
-    }
+void Thread::updateCurrentTime(uint32_t currentTime)
+{
+    initiate(currentTime);
 
-    timeUntillRun = static_cast<int32_t>(runAtTimestamp - currnetTime);
+    timeUntillRun = static_cast<int32_t>(runAtTimestamp - currentTime);
 
     if (timeUntillRun < -(static_cast<int32_t>(1) << 30))
     {
@@ -214,12 +236,10 @@ void Thread::delayNextCodeBlockUntil(FunctionalWrapper<bool>* fun)
 
 void Thread::internalDelayNextCodeBlock(int32_t delay)
 {
-    runAtTimestamp = micros() + delay;
 }
 
 void Thread::internalDelayNextCodeBlockUntil(FunctionalWrapper<bool>* fun)
 {
-    delayCodeBlockUntilFun = fun;
 }
 
 bool Thread::firstCodeBlock()
