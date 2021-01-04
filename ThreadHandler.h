@@ -66,6 +66,8 @@ public:
 
     static uint32_t getTimingError();
 
+    int8_t getPriority() const;
+
 private:
     Thread(const Thread&) = delete;
     Thread& operator=(const Thread&) = delete;
@@ -90,8 +92,6 @@ private:
     bool higherPriorityThan(const Thread& other);
 
     void runThread();
-
-    int8_t getPriority() const;
 
 #if !defined(__AVR__)
     static std::vector<Thread*> generateExecutionOrderVector(const std::vector<Thread*>& threads);
