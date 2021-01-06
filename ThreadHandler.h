@@ -101,7 +101,6 @@ private:
 
     friend class ThreadHandler;
     friend class CodeBlocksThread;
-    friend class ThreadHandlerExecutionOrderOptimized;
 };
 
 template <typename F>
@@ -224,8 +223,6 @@ protected:
 
     virtual void remove(const Thread* t);
 
-    virtual void updated(const Thread* t);
-
     Thread* getNextThreadToRunAndRemoveFrom(Thread*& head);
 
     virtual Thread* getHeadOfThreadsToRun(uint32_t currentTimestamp);
@@ -269,7 +266,6 @@ void CodeBlocksThread::addCodeBlock(F fun)
         funListStart = newNode;
         funListLast = newNode;
     }
-    ThreadHandler::getInstance()->updated(this);
 }
 
 #include "platformSpecificClasses.h"

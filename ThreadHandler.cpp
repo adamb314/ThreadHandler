@@ -311,10 +311,6 @@ void ThreadHandler::remove(const Thread* t)
     }
 }
 
-void ThreadHandler::updated(const Thread* t)
-{
-}
-
 Thread* ThreadHandler::getHeadOfThreadsToRun(uint32_t currentTimestamp)
 {
     Thread* headThreadToRun = nullptr;
