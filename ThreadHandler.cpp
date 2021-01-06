@@ -1,9 +1,7 @@
 #include "ThreadHandler.h"
 
-extern ThreadHandler::InterruptTimerInterface* getInterruptTimerInstance();
 ThreadHandler* createAndConfigureThreadHandler()
 {
-
     static ThreadHandler threadHandler;
     return &threadHandler;
 }
@@ -77,8 +75,7 @@ void CodeBlocksThread::updateCurrentTime(uint32_t currentTime)
 
 unsigned int ThreadInterruptBlocker::blockerCount = 0;
 
-ThreadInterruptBlocker::ThreadInterruptBlocker() :
-    iAmLocked(false)
+ThreadInterruptBlocker::ThreadInterruptBlocker()
 {
     lock();
 }
@@ -90,14 +87,9 @@ ThreadInterruptBlocker::~ThreadInterruptBlocker()
 
 void ThreadInterruptBlocker::lock()
 {
-    static InterruptTimer* interruptTimer = nullptr;
-    if (interruptTimer == nullptr)
+    if (InterruptTimer::isInitialized() == false)
     {
-        interruptTimer = InterruptTimer::getInstance();
-        if (interruptTimer == nullptr)
-        {
-            return;
-        }
+        return;
     }
 
     InterruptTimer::blockInterrupts();
@@ -110,14 +102,9 @@ void ThreadInterruptBlocker::lock()
 
 void ThreadInterruptBlocker::unlock()
 {
-    static InterruptTimer* interruptTimer = nullptr;
-    if (interruptTimer == nullptr)
+    if (InterruptTimer::isInitialized() == false)
     {
-        interruptTimer = InterruptTimer::getInstance();
-        if (interruptTimer == nullptr)
-        {
-            return;
-        }
+        return;
     }
 
     if (iAmLocked)
@@ -364,10 +351,7 @@ Thread* ThreadHandler::getHeadOfThreadsToRun(uint32_t currentTimestamp)
 
 void ThreadHandler::enableThreadExecution(bool enable)
 {
-    if (interruptTimer == nullptr)
-    {
-        interruptTimer = getInterruptTimerInstance();
-    }
+    InterruptTimer::initialize();
 
     ThreadInterruptBlocker blocker;
 
@@ -435,18 +419,8 @@ Thread* ThreadHandler::getNextThreadToRunAndRemoveFrom(Thread*& head)
     return highestPriority;
 }
 
-void ThreadHandler::interruptRun(InterruptTimerInterface* caller)
+void ThreadHandler::interruptRun()
 {
-    //check so that the InterruptTimerInterface calling
-    //is the one configured. This is to protect against
-    //the user creating multiple InterruptTimerInterfaces
-    //and activating them. Only the InterruptTimerInterface
-    //configured is allowed to execute Thread::interruptRun
-    if (caller != interruptTimer)
-    {
-        return;
-    }
-
     ThreadInterruptBlocker blocker;
     InterruptTimer::enableNewInterrupt();
 
@@ -504,32 +478,30 @@ void ThreadHandler::interruptRun(InterruptTimerInterface* caller)
     }
 }
 
-void ThreadHandler::InterruptTimerInterface::interruptRun()
-{
-    ThreadHandler::getInstance()->interruptRun(this);
-}
-
 extern uint32_t getInterruptTimerTick();
 
 #if defined(_SAMD21_)
-InterruptTimer* InterruptTimer::getInstance()
-{
-    static InterruptTimer interruptTimer(getInterruptTimerTick());
-    return &interruptTimer;
-}
+bool InterruptTimer::initialized = false;
 
-InterruptTimer::InterruptTimer(uint16_t interruptTick)
+void InterruptTimer::initialize()
 {
-    if (interruptTick == 0)
+    if (initialized == false)
     {
-        interruptTick = 1000;
+        uint16_t interruptTick = getInterruptTimerTick();
+        if (interruptTick == 0)
+        {
+            interruptTick = 1000;
+        }
+        configure(interruptTick);
+        startCounter();
+
+        initialized = true;
     }
-    configure(interruptTick);
-    startCounter();
 }
 
-InterruptTimer::~InterruptTimer()
+bool InterruptTimer::isInitialized()
 {
+    return initialized;
 }
 
 void InterruptTimer::enableNewInterrupt()
@@ -609,11 +581,16 @@ void InterruptTimer::disable()
     while (isSyncing());
 }
 
+void InterruptTimer::interruptRun()
+{
+    ThreadHandler::getInstance()->interruptRun();
+}
+
 extern "C"
 {
 void tc5InterruptRunCaller()
 {
-    InterruptTimer::getInstance()->interruptRun();
+    InterruptTimer::interruptRun();
 }
 
 __attribute__((naked))
@@ -691,23 +668,26 @@ void Unknown_SVC_Request(unsigned int svc_num)
 
 #elif defined(__AVR__)
 
-InterruptTimer* InterruptTimer::getInstance()
-{
-    static InterruptTimer interruptTimer(getInterruptTimerTick());
-    return &interruptTimer;
-}
+bool InterruptTimer::initialized = false;
 
-InterruptTimer::InterruptTimer(uint16_t interruptTick)
+InterruptTimer::initialize()
 {
-    if (interruptTick != 0)
+    if (initialized == false)
     {
-        Timer1.initialize(interruptTick);
+        uint16_t interruptTick = getInterruptTimerTick();
+        if (interruptTick != 0)
+        {
+            Timer1.initialize(interruptTick);
+        }
+        Timer1.attachInterrupt(interruptHandler);
+
+        initialized = true;
     }
-    Timer1.attachInterrupt(interruptHandler);
 }
 
-InterruptTimer::~InterruptTimer()
+bool InterruptTimer::isInitialized()
 {
+    return initialized;
 }
 
 void InterruptTimer::enableNewInterrupt()
@@ -725,9 +705,14 @@ void InterruptTimer::unblockInterrupts()
     TIMSK1 = _BV(TOIE1);
 }
 
+void InterruptTimer::interruptRun()
+{
+    ThreadHandler::getInstance()->interruptRun();
+}
+
 void interruptHandler() {
     interrupts();
-    InterruptTimer::getInstance()->interruptRun();
+    InterruptTimer::interruptRun();
 }
 
 #endif

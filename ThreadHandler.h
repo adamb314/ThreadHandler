@@ -43,12 +43,12 @@ FunctionalWrapper<returnType>* createFunctionalWrapper(F fun)
 
 class CodeBlocksThread;
 class ThreadHandler;
-class ThreadHandlerExecutionOrderOptimized;
+class InterruptTimer;
 
 class Thread
 {
 public:
-    Thread(int8_t priority, int32_t period, uint32_t startOffset);
+    Thread(int8_t priority, int32_t period, uint32_t startOffset = 0);
 
     virtual ~Thread();
 
@@ -190,10 +190,10 @@ public:
 
     void unlock();
 
-private:
     static unsigned int blockerCount;
+    bool iAmLocked{false};
+private:
 
-    bool iAmLocked;
 };
 
 class ThreadHandler
@@ -213,17 +213,6 @@ public:
 
     uint32_t getTimingError();
 
-    class InterruptTimerInterface
-    {
-    public:
-        InterruptTimerInterface(){};
-
-        virtual ~InterruptTimerInterface(){};
-
-    protected:
-        void interruptRun();
-    };
-
 private:
     ThreadHandler(const ThreadHandler&) = delete;
     ThreadHandler& operator=(const ThreadHandler&) = delete;
@@ -241,9 +230,7 @@ protected:
 
     virtual Thread* getHeadOfThreadsToRun(uint32_t currentTimestamp);
 
-    void interruptRun(InterruptTimerInterface* caller);
-
-    InterruptTimerInterface* interruptTimer{nullptr};
+    void interruptRun();
 
     bool threadExecutionEnabled{false};
     Thread* currentThread{nullptr};
@@ -254,6 +241,7 @@ protected:
 
     friend Thread;
     friend CodeBlocksThread;
+    friend InterruptTimer;
     friend ThreadInterruptBlocker;
     friend ThreadHandler* createAndConfigureThreadHandler();
 };
