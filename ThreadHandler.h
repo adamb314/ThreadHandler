@@ -58,6 +58,10 @@ public:
 
     static void delayNextCodeBlockUntil(FunctionalWrapper<bool>* fun);
 
+    void disableExecution();
+
+    void enableExecution(int32_t period = 0, uint32_t startOffset = 0);
+
     static uint32_t getTimingError();
 
     int8_t getPriority() const;
@@ -95,7 +99,7 @@ private:
     uint32_t runAtTimestamp{0};
     int32_t timeUntillRun{0};
     int32_t period;
-    uint32_t startOffset;
+    uint32_t startOffset{0};
 
     Thread* previous{nullptr};
     Thread* next{nullptr};

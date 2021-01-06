@@ -209,6 +209,25 @@ bool Thread::inRunQueue() const
             ThreadHandler::getInstance()->currentThread == this;
 }
 
+void Thread::disableExecution()
+{
+    ThreadInterruptBlocker blocker;
+
+    startOffset = -1;
+}
+
+void Thread::enableExecution(int32_t period, uint32_t startOffset)
+{
+    ThreadInterruptBlocker blocker;
+
+    initiated = false;
+    if (period != 0)
+    {
+        this->period = period;
+    }
+    this->startOffset = startOffset;
+}
+
 void Thread::delayNextCodeBlock(int32_t delay)
 {
     ThreadHandler::getInstance()->delayNextCodeBlock(delay);
@@ -353,7 +372,8 @@ Thread* ThreadHandler::getHeadOfThreadsToRun(uint32_t currentTimestamp)
 
     for (Thread* it = firstThread; it != nullptr; it = it->next)
     {
-        if (it->getPriority() <= priorityOfRunningThread)
+        if (it->getPriority() <= priorityOfRunningThread ||
+            it->startOffset == -1)
         {
             continue;
         }
