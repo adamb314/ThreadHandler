@@ -62,6 +62,8 @@ public:
 
     int8_t getPriority() const;
 
+    bool inRunQueue() const;
+
 private:
     Thread(const Thread&) = delete;
     Thread& operator=(const Thread&) = delete;
@@ -97,7 +99,7 @@ private:
 
     Thread* previous{nullptr};
     Thread* next{nullptr};
-    Thread* nextPendingRun{nullptr};
+    Thread* nextPendingRun{this};
 
     friend class ThreadHandler;
     friend class CodeBlocksThread;
@@ -230,6 +232,7 @@ protected:
     void interruptRun();
 
     bool threadExecutionEnabled{false};
+    uint8_t executionHaltedOnPrio{-128};
     Thread* currentThread{nullptr};
     int8_t priorityOfRunningThread{-128};
     unsigned int cpuLoadTime{0};

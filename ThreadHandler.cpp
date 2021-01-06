@@ -201,6 +201,14 @@ int8_t Thread::getPriority() const
     return priority;
 }
 
+bool Thread::inRunQueue() const
+{
+    ThreadInterruptBlocker blocker;
+
+    return nextPendingRun != this ||
+            ThreadHandler::getInstance()->currentThread == this;
+}
+
 void Thread::delayNextCodeBlock(int32_t delay)
 {
     ThreadHandler::getInstance()->delayNextCodeBlock(delay);
@@ -252,8 +260,17 @@ ThreadHandler::~ThreadHandler()
 {
 }
 
+uint8_t ThreadHandler::getExecutionHaltedOnPriorityAfterDelete()
+{
+    ThreadInterruptBlocker blocker;
+
+    return executionHaltedOnPrio;
+}
+
 void ThreadHandler::add(Thread* t)
 {
+    ThreadInterruptBlocker blocker;
+
     if (firstThread == nullptr)
     {
         firstThread = t;
@@ -295,6 +312,19 @@ void ThreadHandler::add(Thread* t)
 
 void ThreadHandler::remove(const Thread* t)
 {
+    ThreadInterruptBlocker blocker;
+
+    bool halt = t->inRunQueue();
+    if (halt)
+    {
+        executionHaltedOnPrio = t->getPriority();
+        blocker.unlock();
+
+        while (true)
+        {
+        }
+    }
+
     if (firstThread == t)
     {
         firstThread = t->next;
@@ -404,12 +434,12 @@ Thread* ThreadHandler::getNextThreadToRunAndRemoveFrom(Thread*& head)
     if (highestPriorityParrent == nullptr)
     {
         head = highestPriority->nextPendingRun;
-        highestPriority->nextPendingRun = nullptr;
+        highestPriority->nextPendingRun = highestPriority;
     }
     else
     {
         highestPriorityParrent->nextPendingRun = highestPriority->nextPendingRun;
-        highestPriority->nextPendingRun = nullptr;
+        highestPriority->nextPendingRun = highestPriority;
     }
 
     return highestPriority;
