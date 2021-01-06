@@ -343,6 +343,11 @@ void ThreadHandler::remove(const Thread* t)
 
 Thread* ThreadHandler::getHeadOfThreadsToRun(uint32_t currentTimestamp)
 {
+    if (onlyInitThreadsOnFirstInterrupt)
+    {
+        currentTimestamp += getInterruptTimerTick();
+    }
+
     Thread* headThreadToRun = nullptr;
     Thread* lastThreadToRun = nullptr;
 
@@ -355,7 +360,7 @@ Thread* ThreadHandler::getHeadOfThreadsToRun(uint32_t currentTimestamp)
 
         it->updateCurrentTime(currentTimestamp);
 
-        if (it->pendingRun())
+        if (it->pendingRun() && !onlyInitThreadsOnFirstInterrupt)
         {
             it->nextPendingRun = nullptr;
 
@@ -371,6 +376,8 @@ Thread* ThreadHandler::getHeadOfThreadsToRun(uint32_t currentTimestamp)
             }
         }
     }
+
+    onlyInitThreadsOnFirstInterrupt = false;
 
     return headThreadToRun;
 }
