@@ -5,7 +5,7 @@
 Installing
 ----------
 
-Download this repository as a .ZIP file and use "Add .ZIP Library" in the Arduino IDE to install it. This library depends on the libraries TimerOne and LinkedList. They can be installed from "Manage Libraries..." by searching for TimerOne and LinkedList.
+Download this repository as a .ZIP file and use "Add .ZIP Library" in the Arduino IDE to install it. This library depends on the library TimerOne, which can be installed from "Manage Libraries..." by searching for TimerOne.
 
 Execution demonstration example
 ------------------------------
@@ -216,24 +216,6 @@ To setup the ThreadHandler the following macro has to be used somewhere in the c
 THREAD_HANDLER(InterruptTimer::getInstance());
 ```
 This macro configures which timer should be used for generating the interrupts driving the ThreadHandler. The user can implement there own InterruptTimer by inheriting from the ThreadHandler::InterruptTimerInterface. This is useful for adding support for new boards that this library does not support.
-
-Extra optimization for ARM based boards
-----------------------------------------
-
-For boards with c++ STL support there is an alternative configuration option.
-```c++
-THREAD_HANDLER_WITH_EXECUTION_ORDER_OPTIMIZED(InterruptTimer::getInstance());
-```
-This configures the ThreadHandler to precalculate the execution order of all threads with the same priority and stores it. This changes how the CPU load from the thread scheduling scales with number of threads. The default configuration will search through all threads before calling run on one. This means that the overhead before calling the right thread scales by O(n) where n is the number of threads. With optimization active the scheduler only need to check the unique number of thread priority groups, which means that it instead scales by O(p) where p is the number of unique priorities.
-
-The downside to the optimization is that it requires more memory since the precalculated execution order has to be stored. When creating and destroying threads after enabling thread execution by calling
-```c++
-ThreadHandler::getInstance()->enableThreadExecution();
-```
-an extra computational load will be added since the execution order has to be regenerated. It is therefore recommended to dissable thread execution, before creating/destroying threads, by calling
-```c++
-ThreadHandler::getInstance()->enableThreadExecution(false);
-```
 
 ## Supported boards
 Currently the library supports SAMD21 boards and all AVR based boards supported by the TimerOne library. 

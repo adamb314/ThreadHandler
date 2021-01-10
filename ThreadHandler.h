@@ -2,13 +2,6 @@
 #define THREAD_HANDLER_H
 
 #include <Arduino.h>
-#include <LinkedList.h>
-
-#if !defined(__AVR__)
-#undef min
-#undef max
-#include <vector>
-#endif
 
 #include "configuringMacros.h"
 
@@ -48,32 +41,71 @@ FunctionalWrapper<returnType>* createFunctionalWrapper(F fun)
     return new FunctionalWrapperTemplate<F, returnType>(fun);
 }
 
+class CodeBlocksThread;
+class ThreadHandler;
+
 class Thread
 {
 public:
-    Thread(int8_t priority, int32_t period, uint32_t startOffset);
+    Thread(int8_t priority, int32_t period, uint32_t startOffset = 0);
 
     virtual ~Thread();
 
     virtual void run() = 0;
 
-    virtual bool firstCodeBlock()
-    {
-        return true;
-    }
-
-    virtual bool splitIntoCodeBlocks()
-    {
-        return false;
-    }
-
     static void delayNextCodeBlock(int32_t delay);
 
     static void delayNextCodeBlockUntil(FunctionalWrapper<bool>* fun);
 
+    void disableExecution();
+
+    void enableExecution(int32_t period = 0, uint32_t startOffset = 0);
+
+    static uint32_t getTimingError();
+
+    int8_t getPriority() const;
+
+    bool inRunQueue() const;
+
 private:
     Thread(const Thread&) = delete;
     Thread& operator=(const Thread&) = delete;
+
+    virtual bool splitIntoCodeBlocks();
+
+    virtual void internalDelayNextCodeBlock(int32_t delay);
+    virtual bool firstCodeBlock();
+
+
+    virtual void internalDelayNextCodeBlockUntil(FunctionalWrapper<bool>* fun);
+
+    uint32_t internalGetTimingError();
+
+    void initiate(uint32_t currnetTime);
+
+    virtual void updateCurrentTime(uint32_t time);
+
+    bool pendingRun();
+
+    bool higherPriorityThan(const Thread* other);
+    bool higherPriorityThan(const Thread& other);
+
+    void runThread();
+
+private:
+    bool initiated{false};
+    int8_t priority;
+    uint32_t runAtTimestamp{0};
+    int32_t timeUntillRun{0};
+    int32_t period;
+    uint32_t startOffset{0};
+
+    Thread* previous{nullptr};
+    Thread* next{nullptr};
+    Thread* nextPendingRun{this};
+
+    friend class ThreadHandler;
+    friend class CodeBlocksThread;
 };
 
 template <typename F>
@@ -116,15 +148,33 @@ public:
     template <typename F>
     void addCodeBlock(F fun);
 
-    virtual void run();
-
-    virtual bool firstCodeBlock();
-
-    virtual bool splitIntoCodeBlocks();
-
 private:
-    size_t nextFunBlockIndex;
-    LinkedList<void*> funList;
+    virtual void run() override;
+
+    virtual void updateCurrentTime(uint32_t currnetTime) override;
+
+    virtual bool firstCodeBlock() override;
+
+    virtual bool splitIntoCodeBlocks() override;
+
+    virtual void internalDelayNextCodeBlock(int32_t delay) override;
+
+    virtual void internalDelayNextCodeBlockUntil(FunctionalWrapper<bool>* fun) override;
+
+    class Node
+    {
+    public:
+        Node(FunctionalWrapper<>* fun) : fun(fun) {};
+
+        Node* next{nullptr};
+
+        FunctionalWrapper<>* fun{nullptr};
+    };
+
+    Node* funListStart{nullptr};
+    Node* funListLast{nullptr};
+    Node* nextFunBlockNode{nullptr};
+    FunctionalWrapper<bool>* delayCodeBlockUntilFun{nullptr};
 };
 
 template <typename F>
@@ -144,10 +194,10 @@ public:
 
     void unlock();
 
-private:
     static unsigned int blockerCount;
+    bool iAmLocked{false};
+private:
 
-    bool iAmLocked;
 };
 
 class ThreadHandler
@@ -159,97 +209,83 @@ public:
 
     void enableThreadExecution(bool enable = true);
 
-    uint16_t getCpuLoad();
+    uint8_t getCpuLoad();
 
     void delayNextCodeBlock(int32_t delay);
 
     void delayNextCodeBlockUntil(FunctionalWrapper<bool>* fun);
 
+    uint32_t getTimingError();
+
+    uint8_t getExecutionHaltedOnPriorityAfterDelete();
+
     class InterruptTimerInterface
     {
     public:
-        InterruptTimerInterface(){};
-
         virtual ~InterruptTimerInterface(){};
 
-        virtual void enableNewInterrupt() = 0;
+        virtual void enableNewInterrupt(){};
 
-        virtual void blockInterrupts() = 0;
-        virtual void unblockInterrupts() = 0;
+        virtual void blockInterrupts(){};
+        virtual void unblockInterrupts(){};
+
+        virtual uint32_t syncedMicros(){return micros();};
+
+        virtual uint32_t getInterruptTimestamp(){return micros();};
 
     protected:
-        void interruptRun();
+        static void interruptRun();
     };
 
 private:
     ThreadHandler(const ThreadHandler&) = delete;
     ThreadHandler& operator=(const ThreadHandler&) = delete;
 
+    static InterruptTimerInterface* interruptTimer;
+
+    template <typename T>
+    static T getClassType(T* inst);
+
+    template<typename T>
+    static void callBlock();
+
+    template<typename T>
+    static void callUnblock();
+
+    template<typename T>
+    static void callEnableNewInterrupt();
+    template<typename T>
+    static uint32_t callSyncedMicros();
+
+    template<typename T>
+    static uint32_t callGetInterruptTimestamp();
+
 protected:
     ThreadHandler();
 
-    virtual void add(int8_t priority, int32_t period, uint32_t startOffset, Thread* t);
+    virtual void add(Thread* t);
 
     virtual void remove(const Thread* t);
 
-    virtual void updated(const Thread* t);
+    Thread* getNextThreadToRunAndRemoveFrom(Thread*& head);
 
-    class InternalThreadHolder
-    {
-    public:
-        InternalThreadHolder(int8_t priority, int32_t period, uint32_t startOffset, Thread* t);
+    virtual Thread* getHeadOfThreadsToRun(uint32_t currentTimestamp);
 
-        ~InternalThreadHolder();
+    void interruptRun();
 
-        void updateCurrentTime(uint32_t time);
+    static void blockInterrupts();
+    static void unblockInterrupts();
+    static void enableNewInterrupt();
+    static uint32_t syncedMicros();
+    static uint32_t getInterruptTimestamp();
 
-        bool pendingRun();
-
-        bool higherPriorityThan(const InternalThreadHolder* other);
-        bool higherPriorityThan(const InternalThreadHolder& other);
-
-        void runThread();
-
-        bool isHolderFor(const Thread* t) const;
-
-        int8_t getPriority() const;
-
-        void delayNextCodeBlock(int32_t delay);
-
-        void delayNextCodeBlockUntil(FunctionalWrapper<bool>* fun);
-
-        bool firstCodeBlock();
-
-        bool splitIntoCodeBlocks();
-
-#if !defined(__AVR__)
-        static std::vector<InternalThreadHolder*> generateExecutionOrderVector(const std::vector<InternalThreadHolder*>& threadHolders);
-#endif
-
-    private:
-        Thread* thread;
-
-        bool initiated;
-        uint32_t runAtTimestamp;
-        int32_t timeUntillRun;
-        int32_t period;
-        uint32_t startOffset;
-        int8_t priority;
-        FunctionalWrapper<bool>* delayCodeBlockUntilFun;
-    };
-
-    virtual InternalThreadHolder* getNextThreadToRun(uint32_t currentTimestamp);
-
-    void interruptRun(InterruptTimerInterface* caller);
-
-    InterruptTimerInterface* interruptTimer;
-
-    bool threadExecutionEnabled;
-    InternalThreadHolder* currentInternalThreadHolder;
-    int8_t priorityOfRunningThread;
-    unsigned int cpuLoadTime;
-    unsigned int totalTime;
-    LinkedList<void*> threadHolders;
+    bool threadExecutionEnabled{false};
+    uint8_t executionHaltedOnPrio{-128};
+    Thread* currentThread{nullptr};
+    int8_t priorityOfRunningThread{-128};
+    unsigned int cpuLoadTime{0};
+    unsigned int totalTime{1};
+    Thread* firstThread{nullptr};
 
     friend Thread;
     friend CodeBlocksThread;
@@ -262,14 +298,24 @@ CodeBlocksThread::CodeBlocksThread(int8_t priority, int32_t period, uint32_t sta
     Thread(priority, period, startOffset)
 {
     addCodeBlock<F>(fun);
-    nextFunBlockIndex = 0;
+    nextFunBlockNode = funListStart;
 }
 
 template <typename F>
 void CodeBlocksThread::addCodeBlock(F fun)
 {
-    funList.add(new FunctionalWrapperTemplate<F>(fun));
-    ThreadHandler::getInstance()->updated(this);
+    Node* newNode = new Node(new FunctionalWrapperTemplate<F>(fun));
+
+    if (funListLast != nullptr)
+    {
+        funListLast->next = newNode;
+        funListLast = newNode;
+    }
+    else
+    {
+        funListStart = newNode;
+        funListLast = newNode;
+    }
 }
 
 #include "platformSpecificClasses.h"
