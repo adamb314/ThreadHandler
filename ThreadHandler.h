@@ -43,7 +43,6 @@ FunctionalWrapper<returnType>* createFunctionalWrapper(F fun)
 
 class CodeBlocksThread;
 class ThreadHandler;
-class InterruptTimer;
 
 class Thread
 {
@@ -218,9 +217,48 @@ public:
 
     uint32_t getTimingError();
 
+    uint8_t getExecutionHaltedOnPriorityAfterDelete();
+
+    class InterruptTimerInterface
+    {
+    public:
+        virtual ~InterruptTimerInterface(){};
+
+        virtual void enableNewInterrupt(){};
+
+        virtual void blockInterrupts(){};
+        virtual void unblockInterrupts(){};
+
+        virtual uint32_t syncedMicros(){return micros();};
+
+        virtual uint32_t getInterruptTimestamp(){return micros();};
+
+    protected:
+        static void interruptRun();
+    };
+
 private:
     ThreadHandler(const ThreadHandler&) = delete;
     ThreadHandler& operator=(const ThreadHandler&) = delete;
+
+    static InterruptTimerInterface* interruptTimer;
+
+    template <typename T>
+    static T getClassType(T* inst);
+
+    template<typename T>
+    static void callBlock();
+
+    template<typename T>
+    static void callUnblock();
+
+    template<typename T>
+    static void callEnableNewInterrupt();
+    template<typename T>
+    static uint32_t callSyncedMicros();
+
+    template<typename T>
+    static uint32_t callGetInterruptTimestamp();
 
 protected:
     ThreadHandler();
@@ -235,6 +273,12 @@ protected:
 
     void interruptRun();
 
+    static void blockInterrupts();
+    static void unblockInterrupts();
+    static void enableNewInterrupt();
+    static uint32_t syncedMicros();
+    static uint32_t getInterruptTimestamp();
+
     bool threadExecutionEnabled{false};
     uint8_t executionHaltedOnPrio{-128};
     Thread* currentThread{nullptr};
@@ -245,7 +289,6 @@ protected:
 
     friend Thread;
     friend CodeBlocksThread;
-    friend InterruptTimer;
     friend ThreadInterruptBlocker;
     friend ThreadHandler* createAndConfigureThreadHandler();
 };

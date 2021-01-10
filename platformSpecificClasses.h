@@ -6,19 +6,34 @@ extern "C"
 void tc5InterruptRunCaller();
 }
 
-class InterruptTimer
+class InterruptTimer : public ThreadHandler::InterruptTimerInterface
 {
 public:
-    static void initialize();
+    static InterruptTimer* getInstance();
 
-    static bool isInitialized();
+    virtual ~InterruptTimer(){};
 
-    static void enableNewInterrupt();
+    virtual void enableNewInterrupt() override;
 
-    static void blockInterrupts();
-    static void unblockInterrupts();
+    virtual void blockInterrupts() override;
+    virtual void unblockInterrupts() override;
+
+    virtual uint32_t syncedMicros() override;
+
+    virtual uint32_t getInterruptTimestamp() override;
+
+    static  void enableNewInterruptImp();
+
+    static  void blockInterruptsImp();
+    static  void unblockInterruptsImp();
+
+    static  uint32_t syncedMicrosImp();
+ 
+    static  uint32_t getInterruptTimestampImp();
 
 private:
+    InterruptTimer(uint16_t interruptTick);
+
     static void interruptRun();
 
     static void configure(uint16_t period);
@@ -31,7 +46,11 @@ private:
 
     static void disable();
 
-    static bool initialized;
+    static uint16_t interruptTick;
+
+    static uint32_t interruptTimerTime;
+
+    static uint32_t microsTimerOffset;
 
     friend void tc5InterruptRunCaller();
 };
@@ -40,22 +59,37 @@ private:
 
 void interruptHandler();
 
-class InterruptTimer
+class InterruptTimer : public ThreadHandler::InterruptTimerInterface
 {
 public:
-    static void initialize();
+    static InterruptTimer* getInstance();
 
-    static bool isInitialized();
+    virtual ~InterruptTimer(){};
 
-    static void enableNewInterrupt();
+    virtual void enableNewInterrupt() override;
 
-    static void blockInterrupts();
-    static void unblockInterrupts();
+    virtual void blockInterrupts() override;
+    virtual void unblockInterrupts() override;
+
+    virtual uint32_t syncedMicros() override;
+
+    virtual uint32_t getInterruptTimestamp() override;
+
+    static  void enableNewInterruptImp();
+
+    static  void blockInterruptsImp();
+    static  void unblockInterruptsImp();
+
+    static  uint32_t syncedMicrosImp();
+ 
+    static  uint32_t getInterruptTimestampImp();
 
 private:
+    InterruptTimer(uint16_t interruptTick);
+
     static void interruptRun();
 
-    static bool initialized;
+    static uint32_t microsAtInterrupt;
 
     friend void interruptHandler();
 };

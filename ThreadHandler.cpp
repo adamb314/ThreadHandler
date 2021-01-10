@@ -1,5 +1,9 @@
 #include "ThreadHandler.h"
 
+extern ThreadHandler::InterruptTimerInterface* getInterruptTimerInstance();
+
+ThreadHandler::InterruptTimerInterface* ThreadHandler::interruptTimer = nullptr;
+
 ThreadHandler* createAndConfigureThreadHandler()
 {
     static ThreadHandler threadHandler;
@@ -41,7 +45,7 @@ bool CodeBlocksThread::splitIntoCodeBlocks()
 
 void CodeBlocksThread::internalDelayNextCodeBlock(int32_t delay)
 {
-    runAtTimestamp = micros() + delay;
+    runAtTimestamp = ThreadHandler::syncedMicros() + delay;
 }
 
 void CodeBlocksThread::internalDelayNextCodeBlockUntil(FunctionalWrapper<bool>* fun)
@@ -87,12 +91,12 @@ ThreadInterruptBlocker::~ThreadInterruptBlocker()
 
 void ThreadInterruptBlocker::lock()
 {
-    if (InterruptTimer::isInitialized() == false)
+    if (ThreadHandler::interruptTimer == nullptr)
     {
         return;
     }
 
-    InterruptTimer::blockInterrupts();
+    ThreadHandler::blockInterrupts();
     if (!iAmLocked)
     {
         iAmLocked = true;
@@ -102,7 +106,7 @@ void ThreadInterruptBlocker::lock()
 
 void ThreadInterruptBlocker::unlock()
 {
-    if (InterruptTimer::isInitialized() == false)
+    if (ThreadHandler::interruptTimer == nullptr)
     {
         return;
     }
@@ -114,7 +118,7 @@ void ThreadInterruptBlocker::unlock()
     }
     if (blockerCount == 0)
     {
-        InterruptTimer::unblockInterrupts();
+        ThreadHandler::unblockInterrupts();
     }
 }
 
@@ -253,7 +257,7 @@ void Thread::internalDelayNextCodeBlockUntil(FunctionalWrapper<bool>* fun)
 
 uint32_t Thread::internalGetTimingError()
 {
-    return micros() - runAtTimestamp;
+    return ThreadHandler::syncedMicros() - runAtTimestamp;
 }
 
 bool Thread::firstCodeBlock()
@@ -397,7 +401,7 @@ Thread* ThreadHandler::getHeadOfThreadsToRun(uint32_t currentTimestamp)
 
 void ThreadHandler::enableThreadExecution(bool enable)
 {
-    InterruptTimer::initialize();
+    interruptTimer = getInterruptTimerInstance();
 
     ThreadInterruptBlocker blocker;
 
@@ -465,25 +469,30 @@ Thread* ThreadHandler::getNextThreadToRunAndRemoveFrom(Thread*& head)
     return highestPriority;
 }
 
+
+void ThreadHandler::InterruptTimerInterface::interruptRun()
+{
+    ThreadHandler::getInstance()->interruptRun();
+}
+
 void ThreadHandler::interruptRun()
 {
-    ThreadInterruptBlocker blocker;
-    InterruptTimer::enableNewInterrupt();
-
     if (!threadExecutionEnabled)
     {
         return;
     }
 
-    bool threadExecuted = false;
-    uint32_t currentTimestamp = micros();
+    ThreadInterruptBlocker blocker;
+    ThreadHandler::enableNewInterrupt();
 
-    static uint32_t startTime = micros();
+    uint32_t currentTimestamp = ThreadHandler::getInterruptTimestamp();
+
+    static uint32_t startTime = currentTimestamp;
     static uint32_t loadStartTime = startTime;
 
     if (priorityOfRunningThread == -128)
     {
-        loadStartTime = currentTimestamp;
+        loadStartTime = ThreadHandler::syncedMicros();
     }
 
     Thread* headThreadToRun = getHeadOfThreadsToRun(currentTimestamp);
@@ -494,7 +503,6 @@ void ThreadHandler::interruptRun()
 
         if (threadToRun != nullptr)
         {
-            threadExecuted = true;
             int8_t temp = priorityOfRunningThread;
             auto temp2 = currentThread;
             priorityOfRunningThread = threadToRun->getPriority();
@@ -511,7 +519,7 @@ void ThreadHandler::interruptRun()
         {
             if (priorityOfRunningThread == -128)
             {
-                uint32_t endTime = micros();
+                uint32_t endTime = ThreadHandler::syncedMicros();
                 int32_t timeDiff = static_cast<int32_t>(endTime - startTime);
                 int32_t loadTimeDiff = static_cast<int32_t>(endTime - loadStartTime);
                 startTime = endTime;
@@ -527,42 +535,108 @@ void ThreadHandler::interruptRun()
 extern uint32_t getInterruptTimerTick();
 
 #if defined(_SAMD21_)
-bool InterruptTimer::initialized = false;
 
-void InterruptTimer::initialize()
+uint16_t InterruptTimer::interruptTick;
+
+InterruptTimer* InterruptTimer::getInstance()
 {
-    if (initialized == false)
-    {
-        uint16_t interruptTick = getInterruptTimerTick();
-        if (interruptTick == 0)
-        {
-            interruptTick = 1000;
-        }
-        configure(interruptTick);
-        startCounter();
-
-        initialized = true;
-    }
+    static InterruptTimer inst(getInterruptTimerTick());
+    return &inst;
 }
 
-bool InterruptTimer::isInitialized()
+InterruptTimer::InterruptTimer(uint16_t period)
 {
-    return initialized;
+    if (period == 0)
+    {
+        period = 1000;
+    }
+    interruptTick = period;
+    configure(period);
+    startCounter();
 }
 
 void InterruptTimer::enableNewInterrupt()
 {
-    TC5->COUNT16.INTFLAG.reg = TC_INTFLAG_OVF;
+    enableNewInterruptImp();
 }
 
 void InterruptTimer::blockInterrupts()
 {
-    NVIC_DisableIRQ(TC5_IRQn);
+    blockInterruptsImp();
 }
 
 void InterruptTimer::unblockInterrupts()
 {
+    unblockInterruptsImp();
+}
+
+uint32_t InterruptTimer::getInterruptTimestamp()
+{
+    return getInterruptTimestampImp();
+}
+
+uint32_t InterruptTimer::syncedMicros()
+{
+    return syncedMicrosImp();
+}
+
+void InterruptTimer::enableNewInterruptImp()
+{
+    TC5->COUNT16.INTFLAG.reg = TC_INTFLAG_OVF;
+}
+
+void InterruptTimer::blockInterruptsImp()
+{
+    NVIC_DisableIRQ(TC5_IRQn);
+}
+
+void InterruptTimer::unblockInterruptsImp()
+{
     NVIC_EnableIRQ(TC5_IRQn);
+}
+
+uint32_t InterruptTimer::getInterruptTimestampImp()
+{
+    return interruptTimerTime;
+}
+
+uint32_t InterruptTimer::syncedMicrosImp()
+{
+    return micros() - microsTimerOffset;
+}
+
+uint32_t InterruptTimer::interruptTimerTime = 0;
+uint32_t InterruptTimer::microsTimerOffset = 0;
+
+void InterruptTimer::interruptRun()
+{
+    interruptTimerTime += interruptTick;
+
+    static uint8_t interruptLevel = 0;
+
+    blockInterruptsImp();
+    interruptLevel++;
+
+    if (interruptLevel == 1)
+    {
+        uint32_t newMicrosTimerOffset = micros() - interruptTimerTime;
+
+        while (static_cast<int16_t>(newMicrosTimerOffset - microsTimerOffset) >
+                static_cast<int16_t>(interruptTick / 2))
+        {
+            interruptTimerTime += interruptTick;
+            newMicrosTimerOffset -= interruptTick;
+        }
+
+        microsTimerOffset = newMicrosTimerOffset;
+    }
+    unblockInterruptsImp();
+
+    ThreadHandler::InterruptTimerInterface::interruptRun();
+
+    blockInterruptsImp();
+    interruptLevel--;
+    unblockInterruptsImp();
 }
 
 void InterruptTimer::configure(uint16_t period)
@@ -625,11 +699,6 @@ void InterruptTimer::disable()
 {
     TC5->COUNT16.CTRLA.reg &= ~TC_CTRLA_ENABLE;
     while (isSyncing());
-}
-
-void InterruptTimer::interruptRun()
-{
-    ThreadHandler::getInstance()->interruptRun();
 }
 
 extern "C"
@@ -714,46 +783,52 @@ void Unknown_SVC_Request(unsigned int svc_num)
 
 #elif defined(__AVR__)
 
-bool InterruptTimer::initialized = false;
-
-InterruptTimer::initialize()
+InterruptTimer* InterruptTimer::getInstance()
 {
-    if (initialized == false)
-    {
-        uint16_t interruptTick = getInterruptTimerTick();
-        if (interruptTick != 0)
-        {
-            Timer1.initialize(interruptTick);
-        }
-        Timer1.attachInterrupt(interruptHandler);
-
-        initialized = true;
-    }
+    static InterruptTimer inst(getInterruptTimerTick());
+    return &inst;
 }
 
-bool InterruptTimer::isInitialized()
+InterruptTimer::InterruptTimer(uint16_t interruptTick)
 {
-    return initialized;
+    if (interruptTick != 0)
+    {
+        Timer1.initialize(interruptTick);
+    }
+    Timer1.attachInterrupt(interruptHandler);
 }
 
 void InterruptTimer::enableNewInterrupt()
 {
-    TIFR1 = _BV(TOV1);
+    enableNewInterruptImp();
 }
 
 void InterruptTimer::blockInterrupts()
 {
-    TIMSK1 = 0;
+    blockInterruptsImp();
 }
 
 void InterruptTimer::unblockInterrupts()
 {
-    TIMSK1 = _BV(TOIE1);
+    unblockInterruptsImp();
 }
+
+uint32_t InterruptTimer::microsAtInterrupt = 0;
 
 void InterruptTimer::interruptRun()
 {
-    ThreadHandler::getInstance()->interruptRun();
+    microsAtInterrupt = micros();
+    ThreadHandler::InterruptTimerInterface::interruptRun();
+}
+
+uint32_t InterruptTimer::getInterruptTimestamp()
+{
+    return getInterruptTimestampImp();
+}
+
+uint32_t InterruptTimer::syncedMicros()
+{
+    return syncedMicrosImp();
 }
 
 void interruptHandler() {
@@ -761,4 +836,85 @@ void interruptHandler() {
     InterruptTimer::interruptRun();
 }
 
+void InterruptTimer::enableNewInterruptImp()
+{
+    TIFR1 = _BV(TOV1);
+}
+
+void InterruptTimer::blockInterruptsImp()
+{
+    TIMSK1 = 0;
+}
+
+void InterruptTimer::unblockInterruptsImp()
+{
+    TIMSK1 = _BV(TOIE1);
+}
+
+uint32_t InterruptTimer::getInterruptTimestampImp()
+{
+    return microsAtInterrupt;
+}
+
+uint32_t InterruptTimer::syncedMicrosImp()
+{
+    return micros();
+}
+
 #endif
+
+template<>
+void ThreadHandler::callBlock<ThreadHandler::InterruptTimerInterface>()
+{
+    interruptTimer->blockInterrupts();
+}
+template<>
+void ThreadHandler::callUnblock<ThreadHandler::InterruptTimerInterface>()
+{
+    interruptTimer->unblockInterrupts();
+}
+
+template<>
+void ThreadHandler::callEnableNewInterrupt<ThreadHandler::InterruptTimerInterface>()
+{
+    interruptTimer->enableNewInterrupt();
+}
+template<>
+uint32_t ThreadHandler::callSyncedMicros<ThreadHandler::InterruptTimerInterface>()
+{
+    return interruptTimer->syncedMicros();
+}
+
+template<>
+uint32_t ThreadHandler::callGetInterruptTimestamp<ThreadHandler::InterruptTimerInterface>()
+{
+    return interruptTimer->getInterruptTimestamp();
+}
+
+template<>
+void ThreadHandler::callBlock<InterruptTimer>()
+{
+    InterruptTimer::blockInterruptsImp();
+}
+template<>
+void ThreadHandler::callUnblock<InterruptTimer>()
+{
+    InterruptTimer::unblockInterruptsImp();
+}
+
+template<>
+void ThreadHandler::callEnableNewInterrupt<InterruptTimer>()
+{
+    InterruptTimer::enableNewInterruptImp();
+}
+template<>
+uint32_t ThreadHandler::callSyncedMicros<InterruptTimer>()
+{
+    return InterruptTimer::syncedMicrosImp();
+}
+
+template<>
+uint32_t ThreadHandler::callGetInterruptTimestamp<InterruptTimer>()
+{
+    return InterruptTimer::getInterruptTimestampImp();
+}
