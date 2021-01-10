@@ -15,3 +15,7 @@ enableThreadExecution	KEYWORD2
 getCpuLoad	KEYWORD2
 lock	KEYWORD2
 unlock	KEYWORD2
+getTimingError	KEYWORD2
+getPriority	KEYWORD2
+inRunQueue	KEYWORD2
+getExecutionHaltedOnPriorityAfterDelete	KEYWORD2

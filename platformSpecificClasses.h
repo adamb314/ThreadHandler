@@ -1,55 +1,4 @@
-#if !defined(__AVR__)
-#undef min
-#undef max
-#include <algorithm>
-class ThreadHandlerExecutionOrderOptimized : public ThreadHandler
-{
-public:
-    virtual ~ThreadHandlerExecutionOrderOptimized();
-
-    virtual void add(int8_t priority, int32_t period, uint32_t startOffset, Thread* t);
-
-    virtual void remove(const Thread* t);
-
-    virtual void updated(const Thread* t);
-
-private:
-    ThreadHandlerExecutionOrderOptimized();
-
-    class ThreadHolderPriorityGroup
-    {
-    public:
-        ThreadHolderPriorityGroup(InternalThreadHolder* t);
-
-        void add(InternalThreadHolder* t);
-
-        void remove(const InternalThreadHolder* th);
-
-        int8_t getPriority();
-
-        void generateExecutionOrder();
-
-        InternalThreadHolder* handleUnoptimizableGroupGetNextToRun(uint32_t currentTimestamp);
-
-        InternalThreadHolder* getNextThreadToRun(uint32_t currentTimestamp);
-
-    private:
-        int8_t priority;
-        std::vector<InternalThreadHolder*> threadHolders;
-        std::vector<InternalThreadHolder*> executeRingBuffer;
-        std::vector<InternalThreadHolder*>::iterator itToNextThreadToRun;
-    };
-
-    void generateExecutionOrder();
-
-    virtual InternalThreadHolder* getNextThreadToRun(uint32_t currentTimestamp);
-
-    bool executionOrderGenerated;
-    std::vector<ThreadHolderPriorityGroup> priorityGroups;
-
-    friend ThreadHandler* createAndConfigureThreadHandler();
-};
-#endif
+extern uint32_t getInterruptTimerTick();
 
 #if defined(_SAMD21_)
 extern "C"
@@ -61,25 +10,47 @@ class InterruptTimer : public ThreadHandler::InterruptTimerInterface
 {
 public:
     static InterruptTimer* getInstance();
-    virtual ~InterruptTimer();
 
-    static void enableNewInterrupt();
+    virtual ~InterruptTimer(){};
 
-    static void blockInterrupts();
-    static void unblockInterrupts();
+    virtual void enableNewInterrupt() override;
+
+    virtual void blockInterrupts() override;
+    virtual void unblockInterrupts() override;
+
+    virtual uint32_t syncedMicros() override;
+
+    virtual uint32_t getInterruptTimestamp() override;
+
+    static  void enableNewInterruptImp();
+
+    static  void blockInterruptsImp();
+    static  void unblockInterruptsImp();
+
+    static  uint32_t syncedMicrosImp();
+ 
+    static  uint32_t getInterruptTimestampImp();
 
 private:
     InterruptTimer(uint16_t interruptTick);
 
-    void configure(uint16_t period);
+    static void interruptRun();
 
-    bool isSyncing();
+    static void configure(uint16_t period);
 
-    void startCounter();
+    static bool isSyncing();
 
-    void reset();
+    static void startCounter();
 
-    void disable();
+    static void reset();
+
+    static void disable();
+
+    static uint16_t interruptTick;
+
+    static uint32_t interruptTimerTime;
+
+    static uint32_t microsTimerOffset;
 
     friend void tc5InterruptRunCaller();
 };
@@ -92,15 +63,33 @@ class InterruptTimer : public ThreadHandler::InterruptTimerInterface
 {
 public:
     static InterruptTimer* getInstance();
-    virtual ~InterruptTimer();
 
-    static void enableNewInterrupt();
+    virtual ~InterruptTimer(){};
 
-    static void blockInterrupts();
-    static void unblockInterrupts();
+    virtual void enableNewInterrupt() override;
+
+    virtual void blockInterrupts() override;
+    virtual void unblockInterrupts() override;
+
+    virtual uint32_t syncedMicros() override;
+
+    virtual uint32_t getInterruptTimestamp() override;
+
+    static  void enableNewInterruptImp();
+
+    static  void blockInterruptsImp();
+    static  void unblockInterruptsImp();
+
+    static  uint32_t syncedMicrosImp();
+ 
+    static  uint32_t getInterruptTimestampImp();
 
 private:
     InterruptTimer(uint16_t interruptTick);
+
+    static void interruptRun();
+
+    static uint32_t microsAtInterrupt;
 
     friend void interruptHandler();
 };
