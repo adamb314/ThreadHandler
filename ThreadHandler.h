@@ -236,7 +236,6 @@ protected:
     void interruptRun();
 
     bool threadExecutionEnabled{false};
-    bool onlyInitThreadsOnFirstInterrupt{true};
     uint8_t executionHaltedOnPrio{-128};
     Thread* currentThread{nullptr};
     int8_t priorityOfRunningThread{-128};
