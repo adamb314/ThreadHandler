@@ -18,6 +18,10 @@ InterruptTimer::InterruptTimer(uint16_t period)
     {
         period = 1000;
     }
+    if (period < 10)
+    {
+        period = 10;
+    }
     interruptTick = period;
     configure(period);
     startCounter();
@@ -186,7 +190,6 @@ void TC5_Handler()
     );
 
     TC5->COUNT16.INTFLAG.reg = TC_INTFLAG_OVF;
-    NVIC_DisableIRQ(TC5_IRQn);
 
     asm volatile(
     "  SUB  SP, SP , #0x20 \n"// Reserve 8 words for dummy stack frame for return
@@ -199,8 +202,6 @@ void TC5_Handler()
     "  BX   R3             \n"// Exception return with new created stack frame
     "SysTick_Handler_thread_pt:\n"
     );
-
-    NVIC_EnableIRQ(TC5_IRQn);
 
     asm volatile(
     "  BL   tc5InterruptRunCaller \n"// Call real ISR in thread mode
