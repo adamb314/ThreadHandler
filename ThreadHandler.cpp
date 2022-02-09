@@ -283,7 +283,7 @@ ThreadHandler::~ThreadHandler()
 {
 }
 
-uint8_t ThreadHandler::getExecutionHaltedOnPriorityAfterDelete()
+int8_t ThreadHandler::getExecutionHaltedOnPriorityAfterDelete()
 {
     ThreadInterruptBlocker blocker;
 

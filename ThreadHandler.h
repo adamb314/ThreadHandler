@@ -217,7 +217,7 @@ public:
 
     uint32_t getTimingError();
 
-    uint8_t getExecutionHaltedOnPriorityAfterDelete();
+    int8_t getExecutionHaltedOnPriorityAfterDelete();
 
     class InterruptTimerInterface
     {
@@ -280,7 +280,7 @@ protected:
     static uint32_t getInterruptTimestamp();
 
     bool threadExecutionEnabled{false};
-    uint8_t executionHaltedOnPrio{-128};
+    int8_t executionHaltedOnPrio{-128};
     Thread* currentThread{nullptr};
     int8_t priorityOfRunningThread{-128};
     unsigned int cpuLoadTime{0};
